@@ -163,7 +163,7 @@
   
   /* ================= 你提供的敲手指动画 CSS ================= */
   .🤚 {
-    --skin-color: #E4C560;
+    --skin-color: #c2baba;
     --tap-speed: 0.6s;
     --tap-stagger: 0.1s;
     position: relative;
@@ -215,7 +215,7 @@
     width: 20%;
     height: 60%;
     content: '';
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(28, 28, 29, 0.3);
     position: absolute;
     bottom: -8%;
     left: 5px;
