@@ -19,9 +19,9 @@
 </template>
 
 <script setup lang="ts">
-  import SplitText from "./SplitText.vue";
+  import SplitText from "./views/font/SplitText.vue";
   //背景
-  import AuroraBackground from "./views/Aurora.vue"; 
+  import AuroraBackground from "./views/background/Aurora.vue"; 
 
   const handleAnimationComplete = () => {
     console.log('All letters have animated over the aurora!');
@@ -31,9 +31,9 @@
 <style scoped>
 .fullscreen-center {
   height: 100vh; /* 视口高度的 100% */
-  display: flex; /* 开启 flex 布局 */
-  justify-content: center; /* 水平居中 */
-  align-items: center; /* 垂直居中 */
+  display: flex;
+  justify-content: center;
+  align-items: center; 
   margin: 0; 
 }
 
