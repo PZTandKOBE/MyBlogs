@@ -26,7 +26,7 @@
           ></SplitText>
   
           <button class="bubbles" @click="startTransition">
-            <span class="text">进入首页</span>
+            <span class="text">Enter</span>
           </button>
         </div>
       </transition>
@@ -66,7 +66,7 @@
       // 2. 延迟 1.5 秒（让手指敲一会），然后再执行真正的路由跳转
       setTimeout(() => {
         router.push('/home'); // 请确保你的路由配置里有 /home
-      }, 1500);
+      }, 3000);
     };
   </script>
   

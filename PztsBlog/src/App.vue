@@ -1,9 +1,9 @@
 <template>
-  <Portal />
+  <RouterView />
 </template>
 
 <script setup lang="ts">
-  import Portal from "./views/portal/index.vue";
+import { RouterView } from "vue-router";
 </script>
 
 <style>
