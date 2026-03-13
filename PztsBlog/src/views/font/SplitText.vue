@@ -70,7 +70,7 @@ const runAnimation = () => {
     _rbsplitInstance?: GSAPSplitText;
   };
 
-  // cleanup previous
+
   if (el._rbsplitInstance) {
     try {
       el._rbsplitInstance.revert();

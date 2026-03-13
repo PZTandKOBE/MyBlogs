@@ -1,6 +1,7 @@
 <template>
   <div class="beams-container">
     <Beams
+      class="background-beams"
       :beam-width="2"
       :beam-height="15"
       :beam-number="12"
@@ -11,53 +12,86 @@
       :rotation="30"
     />
     
-    <CardNav
-      :logo="logo"
-      logoAlt="Company Logo"
-      :items="items"
-      baseColor="#fff"
-      menuColor="#000"
-      buttonBgColor="#111"
-      buttonTextColor="#fff"
-      ease="power3.out"
-    />
+    <div class="scrollable-content">
+      <div class="sticky-nav-wrapper">
+        <CardNav
+          :logo="logo"
+          logoAlt="Company Logo"
+          :items="items"
+          baseColor="#fff"
+          menuColor="#000"
+          buttonBgColor="#111"
+          buttonTextColor="#fff"
+          ease="power3.out"
+        />
+      </div>
 
-    <ul class="ul">
-      <li class="li">
-        <button class="button"><p class="p">Home</p></button>
-      </li>
-      
-      <li class="li has-submenu">
-        <button class="button"><p class="p">Store</p></button>
+      <div class="main-layout">
         
-        <div class="submenu-wrapper">
-          <div class="submenu-inner">
-            <ul class="submenu">
-              <li class="sub-li">
-                <button class="sub-button"><p class="p">Hardware</p></button>
-              </li>
-              <li class="sub-li">
-                <button class="sub-button"><p class="p">Software</p></button>
-              </li>
-              <li class="sub-li">
-                <button class="sub-button"><p class="p">Accessories</p></button>
-              </li>
-            </ul>
+        <div class="left-nav-container">
+          <ul class="ul">
+            <li class="li">
+              <button class="button"><p class="p">Home</p></button>
+            </li>
+            
+            <li class="li has-submenu">
+              <button class="button"><p class="p">Store</p></button>
+              
+              <div class="submenu-wrapper">
+                <div class="submenu-inner">
+                  <ul class="submenu">
+                    <li class="sub-li">
+                      <button class="sub-button"><p class="p">Hardware</p></button>
+                    </li>
+                    <li class="sub-li">
+                      <button class="sub-button"><p class="p">Software</p></button>
+                    </li>
+                    <li class="sub-li">
+                      <button class="sub-button"><p class="p">Accessories</p></button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </li>
+
+            <li class="li">
+              <button class="button"><p class="p">Settings</p></button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="middle-content-container">
+          <div class="list-wrapper">
+            <ListCard />
+          </div>
+
+          <div class="gallery-wrapper">
+            <h2 class="gallery-title">My travel photos</h2>
+
+            <RollingGallery
+              :autoplay="true"
+              :pause-on-hover="true"
+              :images="customImages"
+            />
           </div>
         </div>
-      </li>
 
-      <li class="li">
-        <button class="button"><p class="p">Settings</p></button>
-      </li>
-    </ul>
+        <div class="right-placeholder">
+          <musicCard />
+        </div>
+
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import Beams from "@/views/background/Beams.vue";
 import CardNav from "@/components/common/CardNav.vue";
+import ListCard from "@/components/common/ListCard.vue"; 
 import logo from "@/assets/Blog.svg";
+import musicCard from "@/components/common/musicCard.vue";
+import RollingGallery from "@/components/common/RollingGallery.vue"; 
 
 const items = [
   {
@@ -89,6 +123,14 @@ const items = [
     ]
   }
 ];
+
+const customImages = [
+  "https://images.unsplash.com/photo-1528181304800-259b08848526?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  "https://images.unsplash.com/photo-1506665531195-3566af2b4dfa?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=3456&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  "https://images.unsplash.com/photo-1495103033382-fe343886b671?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+  "https://images.unsplash.com/photo-1506781961370-37a89d6b3095?q=80&w=3264&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+];
 </script>
 
 <style scoped>
@@ -96,25 +138,98 @@ const items = [
   width: 100%;
   height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; 
   background: #000;
 }
 
-/* ================= 主导航栏样式 ================= */
-.ul {
+.background-beams {
   position: absolute;
-  left: clamp(1.5rem, 4vw, 5rem); 
-  top: max(140px, 30%); 
-  transform: translateY(-50%);
-  z-index: 50; 
-  
-  width: fit-content;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  pointer-events: none; 
+}
+
+.scrollable-content {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  overflow-y: auto; 
+  overflow-x: hidden;
+  z-index: 10;
+  scroll-behavior: smooth;
+}
+
+.scrollable-content::-webkit-scrollbar {
+  display: none;
+}
+
+.sticky-nav-wrapper {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 120px; 
+  z-index: 100;
+  pointer-events: none; 
+}
+
+.sticky-nav-wrapper :deep(.card-nav-container) {
+  pointer-events: auto;
+}
+
+.main-layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; 
+  gap: 2rem;
+  width: 95%;
+  max-width: 1380px; 
+  margin: 10px auto 10vh auto;
+  z-index: 40;
+}
+
+.left-nav-container {
+  width: 350px; 
+  flex-shrink: 0;
+  padding-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end; 
+}
+
+.middle-content-container {
+  width: 100%;
+  max-width: 800px; 
+  display: flex;
+  flex-direction: column;
+  gap: 3rem; 
+}
+
+.list-wrapper {
+  width: 100%;
+  /* ★ 这里从 600px 修改到了 750px，让文章列表变得更长 */
+  height: 900px; 
+}
+
+.gallery-wrapper {
+  width: 100%;
+}
+
+.right-placeholder {
+  width: 350px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1300px) {
+  .left-nav-container, .right-placeholder {
+    display: none;
+  }
+}
+
+.ul {
+  width: 160px; 
   height: fit-content;
   background-color: transparent;
   list-style: none;
   padding: 0; 
   margin: 0;
-  
   display: flex;
   flex-direction: column;
   gap: clamp(0.5rem, 3vh, 1.5rem); 
@@ -129,9 +244,9 @@ const items = [
   font-family: sans-serif;
   color: rgb(255, 255, 255);
   border: none;
-  font-size: clamp(18px, 2.5vw, 28px); 
+  font-size: clamp(18px, 2.5vw, 24px); 
   font-weight: 700;
-  padding: 0.4em 1.4em 0.4em 0.7em; 
+  padding: 0.4em 0.5em 0.4em 0.7em; 
   cursor: pointer;
   position: relative;
   text-align: left; 
@@ -160,7 +275,6 @@ const items = [
   background-color: #ffffff; 
 }
 
-/* 主菜单绿色菱形小点 */
 .button::before {
   content: "";
   border-radius: 2px;
@@ -180,14 +294,10 @@ const items = [
   background-color: #2c2b2b; 
 }
 
-/* ================= 子集导航栏魔法 ================= */
-
-/* 父级 li 悬浮时触发展开 */
 .has-submenu:hover .submenu-wrapper {
   grid-template-rows: 1fr;
 }
 
-/* Grid 手风琴核心容器 */
 .submenu-wrapper {
   display: grid;
   grid-template-rows: 0fr;
@@ -195,7 +305,7 @@ const items = [
 }
 
 .submenu-inner {
-  overflow: hidden; /* 必须搭配 hidden 才能实现无缝折叠 */
+  overflow: hidden; 
 }
 
 .submenu {
@@ -204,9 +314,9 @@ const items = [
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem; /* 子菜单项间距更紧凑 */
-  padding-left: 2em; /* 向右缩进，形成树状层级感 */
-  padding-top: 0.8rem; /* 与父菜单拉开一点呼吸感 */
+  gap: 0.4rem; 
+  padding-left: 2em; 
+  padding-top: 0.8rem; 
 }
 
 .sub-li {
@@ -216,10 +326,10 @@ const items = [
 .sub-button {
   background-color: transparent;
   font-family: sans-serif;
-  color: rgba(255, 255, 255, 0.75); /* 默认偏暗，降低视觉权重 */
+  color: rgba(255, 255, 255, 0.75); 
   border: none;
-  font-size: clamp(14px, 1.8vw, 20px); /* 比主菜单字号小 */
-  font-weight: 500; /* 字重变细 */
+  font-size: clamp(14px, 1.8vw, 18px); 
+  font-weight: 500; 
   padding: 0.3em 1em 0.3em 0.5em; 
   cursor: pointer;
   position: relative;
@@ -243,12 +353,11 @@ const items = [
   background-color: #ffffff; 
 }
 
-/* 子菜单的绿色小节点（改为细长的科技感短轴） */
 .sub-button::before {
   content: "";
   position: absolute;
   width: 4px; 
-  height: 0px; /* 初始隐藏 */
+  height: 0px; 
   background-color: #ffffff; 
   left: -8px; 
   top: 50%; 
@@ -263,7 +372,6 @@ const items = [
   left: 0;
 }
 
-/* 未 hover 时的静态小绿点（横线） */
 .sub-button::after {
   content: "";
   position: absolute;
@@ -278,12 +386,18 @@ const items = [
 }
 
 .sub-button:hover::after {
-  opacity: 0; /* Hover 亮起时，静态小横线消失 */
+  opacity: 0; 
 }
 
-@media (max-height: 600px) {
-  .ul {
-    top: 50%; 
-  }
+.gallery-title {
+  color: #ffffff;
+  font-size: 50px; 
+  font-weight: 700; 
+  font-family: sans-serif;
+  margin-bottom: 20px; 
+  text-align: center;
+  margin-top: 0;
+  padding-left: 10px; 
+  letter-spacing: 2px; 
 }
 </style>
