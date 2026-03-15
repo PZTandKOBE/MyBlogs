@@ -1,5 +1,5 @@
 <template>
-    <div ref="containerRef" :class="['w-full h-full relative pointer-events-none z-[3] overflow-hidden', className]" />
+    <div ref="containerRef" :class="['light-rays-container', className]" />
   </template>
   
   <script setup lang="ts">
@@ -234,7 +234,7 @@
     vec4 color;
     mainImage(color, gl_FragCoord.xy);
     gl_FragColor = color;
-  }`;
+  }`
   
   const initializeWebGL = async (): Promise<void> => {
     if (!containerRef.value) return;
@@ -504,3 +504,13 @@
   });
   </script>
   
+  <style scoped>
+  .light-rays-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    pointer-events: none;
+    z-index: 3;
+    overflow: hidden;
+  }
+  </style>

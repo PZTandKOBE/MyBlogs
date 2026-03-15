@@ -1,12 +1,90 @@
+<template>
+  <div class="main_wrapper">
+    <div class="main">
+      <div class="antenna">
+        <div class="antenna_shadow"></div>
+        <div class="a1"></div>
+        <div class="a1d"></div>
+        <div class="a2"></div>
+        <div class="a2d"></div>
+        <div class="a_base"></div>
+      </div>
+      <div class="tv">
+        <div class="cruve">
+          <svg
+            class="curve_svg"
+            version="1.1"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            viewBox="0 0 189.929 189.929"
+            xml:space="preserve"
+          >
+            <path
+              d="M70.343,70.343c-30.554,30.553-44.806,72.7-39.102,115.635l-29.738,3.951C-5.442,137.659,11.917,86.34,49.129,49.13
+          C86.34,11.918,137.664-5.445,189.928,1.502l-3.95,29.738C143.041,25.54,100.895,39.789,70.343,70.343z"
+            ></path>
+          </svg>
+        </div>
+        <div class="display_div">
+          <div class="screen_out">
+            <div class="screen_out1">
+              <div class="screen">
+                <span class="notfound_text"> NOT FOUND</span>
+              </div>
+              <div class="screenM">
+                <span class="notfound_text"> NOT FOUND</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lines">
+          <div class="line1"></div>
+          <div class="line2"></div>
+          <div class="line3"></div>
+        </div>
+        <div class="buttons_div">
+          <div class="b1"><div></div></div>
+          <div class="b2"></div>
+          <div class="speakers">
+            <div class="g1">
+              <div class="g11"></div>
+              <div class="g12"></div>
+              <div class="g13"></div>
+            </div>
+            <div class="g"></div>
+            <div class="g"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom">
+        <div class="base1"></div>
+        <div class="base2"></div>
+        <div class="base3"></div>
+      </div>
+    </div>
+    <div class="text_404">
+      <div class="text_4041">4</div>
+      <div class="text_4042">0</div>
+      <div class="text_4043">4</div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
   /* Design Inspired by one of Stefan Devai's Design on Dribble */
 
+  /* ================= 核心修改区 ================= */
   .main_wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30em;
-    height: 30em;
+    width: 100vw;       /* 占满屏幕宽度 */
+    height: 100vh;      /* 占满屏幕高度 */
+    background-color: #000000; /* 纯黑背景 */
+    overflow: hidden;   /* 防止由于稍微溢出产生的滚动条 */
+    position: relative;
+    margin: 0;
+    padding: 0;
   }
 
   .main {
@@ -14,8 +92,24 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin-top: 5em;
+    z-index: 10;
+    /* margin-top: 5em; 删除这个 margin，让它在屏幕中完美垂直居中 */
   }
+
+  .text_404 {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    column-gap: 6em;
+    z-index: 1; /* 放到电视机后面 */
+    align-items: center;
+    justify-content: center;
+    opacity: 0.1; /* 调低透明度，形成暗调水印感 */
+    color: #ffffff; /* 改为白色，使其在纯黑背景下可见 */
+    font-family: Montserrat, sans-serif;
+    pointer-events: none; /* 防止遮挡鼠标点击事件 */
+  }
+  /* ============================================== */
 
   .antenna {
     width: 5em;
@@ -187,7 +281,6 @@
   .screen_out {
     width: auto;
     height: auto;
-
     border-radius: 10px;
   }
   .screen_out1 {
@@ -311,45 +404,6 @@
         60% 50%;
     }
   }
-
-  /* Another Error Screen to Use 
-
-  .screen {
-    width: 13em;
-    height: 7.85em;
-    position: relative;
-    background: linear-gradient(to right, #002fc6 0%, #002bb2 14.2857142857%, #3a3a3a 14.2857142857%, #303030 28.5714285714%, #ff0afe 28.5714285714%, #f500f4 42.8571428571%, #6c6c6c 42.8571428571%, #626262 57.1428571429%, #0affd9 57.1428571429%, #00f5ce 71.4285714286%, #3a3a3a 71.4285714286%, #303030 85.7142857143%, white 85.7142857143%, #fafafa 100%);
-    border-radius: 10px;
-    border: 2px solid black;
-    z-index: 99;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: #252525;
-    letter-spacing: 0.15em;
-    text-align: center;
-    overflow: hidden;
-  }
-  .screen:before, .screen:after {
-    content: "";
-    position: absolute;
-    left: 0;
-    z-index: 1;
-    width: 100%;
-  }
-  .screen:before {
-    top: 0;
-    height: 68.4782608696%;
-    background: linear-gradient(to right, white 0%, #fafafa 14.2857142857%, #ffe60a 14.2857142857%, #f5dc00 28.5714285714%, #0affd9 28.5714285714%, #00f5ce 42.8571428571%, #10ea00 42.8571428571%, #0ed600 57.1428571429%, #ff0afe 57.1428571429%, #f500f4 71.4285714286%, #ed0014 71.4285714286%, #d90012 85.7142857143%, #002fc6 85.7142857143%, #002bb2 100%);
-  }
-  .screen:after {
-    bottom: 0;
-    height: 21.7391304348%;
-    background: linear-gradient(to right, #006c6b 0%, #005857 16.6666666667%, white 16.6666666667%, #fafafa 33.3333333333%, #001b75 33.3333333333%, #001761 50%, #6c6c6c 50%, #626262 66.6666666667%, #929292 66.6666666667%, #888888 83.3333333333%, #3a3a3a 83.3333333333%, #303030 100%);
-  }
-
-    */
 
   .lines {
     display: flex;
@@ -519,18 +573,6 @@
     margin-top: 0.8em;
   }
 
-  .text_404 {
-    position: absolute;
-    display: flex;
-    flex-direction: row;
-    column-gap: 6em;
-    z-index: -5;
-    margin-bottom: 2em;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.5;
-    font-family: Montserrat;
-  }
   .text_4041 {
     transform: scaleY(24.5) scaleX(9);
   }
@@ -584,75 +626,3 @@
     }
   }
 </style>
-
-<template>
-  <div class="main_wrapper">
-    <div class="main">
-      <div class="antenna">
-        <div class="antenna_shadow"></div>
-        <div class="a1"></div>
-        <div class="a1d"></div>
-        <div class="a2"></div>
-        <div class="a2d"></div>
-        <div class="a_base"></div>
-      </div>
-      <div class="tv">
-        <div class="cruve">
-          <svg
-            class="curve_svg"
-            version="1.1"
-            xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
-            viewBox="0 0 189.929 189.929"
-            xml:space="preserve"
-          >
-            <path
-              d="M70.343,70.343c-30.554,30.553-44.806,72.7-39.102,115.635l-29.738,3.951C-5.442,137.659,11.917,86.34,49.129,49.13
-          C86.34,11.918,137.664-5.445,189.928,1.502l-3.95,29.738C143.041,25.54,100.895,39.789,70.343,70.343z"
-            ></path>
-          </svg>
-        </div>
-        <div class="display_div">
-          <div class="screen_out">
-            <div class="screen_out1">
-              <div class="screen">
-                <span class="notfound_text"> NOT FOUND</span>
-              </div>
-              <div class="screenM">
-                <span class="notfound_text"> NOT FOUND</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="lines">
-          <div class="line1"></div>
-          <div class="line2"></div>
-          <div class="line3"></div>
-        </div>
-        <div class="buttons_div">
-          <div class="b1"><div></div></div>
-          <div class="b2"></div>
-          <div class="speakers">
-            <div class="g1">
-              <div class="g11"></div>
-              <div class="g12"></div>
-              <div class="g13"></div>
-            </div>
-            <div class="g"></div>
-            <div class="g"></div>
-          </div>
-        </div>
-      </div>
-      <div class="bottom">
-        <div class="base1"></div>
-        <div class="base2"></div>
-        <div class="base3"></div>
-      </div>
-    </div>
-    <div class="text_404">
-      <div class="text_4041">4</div>
-      <div class="text_4042">0</div>
-      <div class="text_4043">4</div>
-    </div>
-  </div>
-</template>
