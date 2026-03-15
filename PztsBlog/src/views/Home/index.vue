@@ -24,6 +24,17 @@
           buttonTextColor="#fff"
           ease="power3.out"
         />
+
+        <div class="user-btn-container">
+          <button class="Btn" @click="goToUserProfile">
+            <span class="svgContainer">
+              <svg fill="white" viewBox="0 0 448 512" height="1.6em">
+                <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z"/>
+              </svg>
+            </span>
+            <span class="BG"></span>
+          </button>
+        </div>
       </div>
 
       <div class="main-layout">
@@ -86,12 +97,20 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'; // 引入路由工具
 import Beams from "@/views/background/Beams.vue";
 import CardNav from "@/components/common/CardNav.vue";
 import ListCard from "@/components/common/ListCard.vue"; 
 import logo from "@/assets/Blog.svg";
 import musicCard from "@/components/common/musicCard.vue";
 import RollingGallery from "@/components/common/RollingGallery.vue"; 
+
+const router = useRouter();
+
+// 跳转到个人主页的事件
+const goToUserProfile = () => {
+  router.push('/user');
+};
 
 const items = [
   {
@@ -162,6 +181,7 @@ const customImages = [
   display: none;
 }
 
+/* 顶部粘性区域，作为 CardNav 和 头像按钮 的共同容器 */
 .sticky-nav-wrapper {
   position: sticky;
   top: 0;
@@ -174,6 +194,67 @@ const customImages = [
 .sticky-nav-wrapper :deep(.card-nav-container) {
   pointer-events: auto;
 }
+
+/* ================ 新增：右上角头像容器 ================ */
+.user-btn-container {
+  position: absolute;
+  right: 2.5%; /* 配合 .main-layout 的 95% 宽度进行对齐边缘 */
+  top: 40px; /* 控制垂直方向居中，与导航栏对齐 */
+  pointer-events: auto; /* 恢复该组件的点击事件 */
+  z-index: 110;
+}
+
+/* ================ 你的按钮样式 ================ */
+.Btn {
+  width: 55px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: transparent;
+  position: relative;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all .3s;
+}
+
+.svgContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  backdrop-filter: blur(0px);
+  letter-spacing: 0.8px;
+  border-radius: 10px;
+  transition: all .3s;
+  border: 1px solid rgba(156, 156, 156, 0.466);
+}
+
+.BG {
+  position: absolute;
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: #181818;
+  z-index: -1;
+  border-radius: 10px;
+  pointer-events: none;
+  transition: all .3s;
+}
+
+.Btn:hover .BG {
+  transform: rotate(35deg);
+  transform-origin: bottom;
+}
+
+.Btn:hover .svgContainer {
+  background-color: rgba(156, 156, 156, 0.466);
+  backdrop-filter: blur(4px);
+}
+/* =================================================== */
 
 .main-layout {
   display: flex;
@@ -204,7 +285,6 @@ const customImages = [
 
 .list-wrapper {
   width: 100%;
-  /* ★ 这里从 600px 修改到了 750px，让文章列表变得更长 */
   height: 900px; 
 }
 

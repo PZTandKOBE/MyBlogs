@@ -26,6 +26,11 @@ const router = createRouter({
       path: '/article/:id',
       name: 'article',
       component: () => import('@/views/Article/index.vue')
+    },
+    {
+      path: '/user',
+      name: 'user',
+      component: () => import('@/views/User/index.vue')
     }
   ],
   scrollBehavior() {
