@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'not-found',
       component: () => import('@/views/NotFound.vue'),
     },
+    {
+      path:'/Aartical',
+      name:'Aartical',
+      component: () => import('@/views/Article/index.vue')
+    }
   ],
   scrollBehavior() {
     return { left: 0, top: 0 }
