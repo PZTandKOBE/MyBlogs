@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { gsap } from 'gsap';
 import { nextTick, onBeforeUpdate, onMounted, onUnmounted, ref, watch, type VNodeRef } from 'vue';
+import { useRouter } from 'vue-router';
 
 type CardNavLink = {
   label: string;
@@ -33,6 +34,12 @@ const props = withDefaults(defineProps<CardNavProps>(), {
   ease: 'power3.out',
   baseColor: '#fff'
 });
+
+const router = useRouter();
+
+const goToPublish = () => {
+  router.push('/publish');
+};
 
 const isHamburgerOpen = ref(false);
 const isExpanded = ref(false);
@@ -255,6 +262,7 @@ watch(
         <button
           type="button"
           class="card-nav-cta-button"
+          @click="goToPublish"
           :style="{
             backgroundColor: props.buttonBgColor,
             color: props.buttonTextColor

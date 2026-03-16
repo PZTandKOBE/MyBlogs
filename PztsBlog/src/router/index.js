@@ -1,3 +1,4 @@
+import Register from '@/views/login/register.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -31,6 +32,21 @@ const router = createRouter({
       path: '/user',
       name: 'user',
       component: () => import('@/views/User/index.vue')
+    },
+    {
+      path: '/publish',
+      name: 'publish',
+      component: () => import('@/views/Publish/index.vue')
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/login/login.vue')
+    },
+    {
+      path:'/register',
+      name:'register',
+      component: () => import('@/views/login/register.vue')
     }
   ],
   scrollBehavior() {
