@@ -87,7 +87,7 @@
   .profile-body {
     align-items: center;
     text-align: center;
-    padding-top: 2.75rem;
+    padding-top: 5.75rem;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
@@ -100,7 +100,7 @@
     font-size: 1.6rem;
     font-weight: 700;
     color: var(--text-color);
-    text-transform: uppercase;
+    text-transform: percase;
     letter-spacing: 0.1em;
     margin: 0;
     position: relative;
@@ -278,7 +278,7 @@
       </div>
       <div class="card-body profile-body">
         <div class="profile-info">
-          <div class="profile-name" data-text="octo_cat">octo_cat</div>
+          <div class="profile-name" data-text="PZTandKOBE">PZTandKOBE</div>
           <p class="profile-title">UI DEVELOPER</p>
         </div>
         <div class="profile-stats">
@@ -291,7 +291,7 @@
             <span class="stat-value" data-text="42k">42k</span>
           </div>
         </div>
-        <a href="#" class="submit-btn" data-text="VIEW_ON_GITHUB">
+        <a href="https://github.com/PZTandKOBE" class="submit-btn" data-text="VIEW_ON_GITHUB">
           <span class="btn-text">VIEW_ON_GITHUB</span>
         </a>
       </div>

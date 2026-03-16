@@ -87,7 +87,6 @@ const createTimeline = () => {
   const navEl = navRef.value;
   if (!navEl) return null;
 
-  // 修复点 3：移除了这里的 overflow: 'hidden'，允许光效溢出
   gsap.set(navEl, { height: 60 });
   gsap.set(cardsRef.value, { y: 50, opacity: 0 });
 
@@ -261,7 +260,7 @@ watch(
             color: props.buttonTextColor
           }"
         >
-          Get Started
+          <h2>+</h2>
         </button>
       </div>
 

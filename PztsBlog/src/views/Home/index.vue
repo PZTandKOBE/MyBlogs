@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'; // 引入路由工具
+import { useRouter } from 'vue-router';
 import Beams from "@/views/background/Beams.vue";
 import CardNav from "@/components/common/CardNav.vue";
 import ListCard from "@/components/common/ListCard.vue"; 
