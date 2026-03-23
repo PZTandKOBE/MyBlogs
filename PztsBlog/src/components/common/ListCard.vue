@@ -30,35 +30,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { getArticleListApi } from '@/api/article';
 
 const router = useRouter();
 
-// 内部定义模拟数据，后续可以在这里发起外部接口请求进行赋值
-const articles = ref([
-  {
-    id: 1,
-    title: 'Vue3 组合式 API 的最佳实践与思考',
-    summary: '本文总结了在现代前端项目开发中，如何优雅地组织和复用组合式 API (Composition API) 的代码逻辑，以及状态管理的一些避坑指南。',
-    date: '2026-03-10',
-    author: '彭梓涛'
-  },
-  {
-    id: 2,
-    title: 'Vite 深度优化指南：让冷启动快如闪电',
-    summary: '记录了在个人博客系统开发过程中，遇到的打包体积过大、冷启动慢等问题，以及如何通过 Vite 配置进行依赖预构建和分包优化。',
-    date: '2026-03-08',
-    author: '彭梓涛'
-  },
-  {
-    id: 3,
-    title: 'CSS 玻璃质感(Glassmorphism)设计解析',
-    summary: '探讨如何利用 backdrop-filter 和 rgba 颜色模型，打造具有空间层次感且高级感拉满的现代 Web UI 视觉效果。',
-    date: '2026-03-05',
-    author: '彭梓涛'
+// 响应式文章列表
+const articles = ref<any[]>([]);
+
+// 获取真实的文章列表数据
+const fetchArticles = async () => {
+  try {
+    // 默认请求第一页，每页 10 条（如果后续加了分页可以做成动态变量）
+    const res = await getArticleListApi({ pageNum: 1, pageSize: 10 });
+    
+    if (res && res.data) {
+      // 兼容后端返回的是纯数组，或是包裹在 list 字段里的情况
+      const list = Array.isArray(res.data) ? res.data : (res.data.list || []);
+      
+      articles.value = list.map((item: any) => {
+        // 提取摘要：如果有 summary 字段就用，没有的话截取 content 前 80 个字符
+        let generateSummary = item.summary;
+        if (!generateSummary && item.content) {
+          generateSummary = item.content.length > 80 
+            ? item.content.substring(0, 80) + '...' 
+            : item.content;
+        }
+
+        return {
+          id: item.id,
+          title: item.title || '无标题',
+          summary: generateSummary || '暂无摘要',
+          date: item.createTime || item.date || '刚刚发布',
+          author: item.authorName || item.author || '彭梓涛'
+        };
+      });
+    }
+  } catch (error) {
+    console.error('获取文章列表失败:', error);
   }
-]);
+};
+
+// 组件挂载时自动获取数据
+onMounted(() => {
+  fetchArticles();
+});
 
 const goToArticle = (id: number) => {
   router.push({ name: 'article', params: { id } });

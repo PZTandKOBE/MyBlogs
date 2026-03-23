@@ -28,7 +28,7 @@
           style="display: none" 
           @change="handleFileUpload" 
         />
-        <button class="secondary-btn" @click="triggerFileInput">
+        <button class="secondary-btn" @click="triggerFileInput" :disabled="isPublishing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
@@ -36,8 +36,8 @@
           </svg>
           导入 .md 文件
         </button>
-        <button class="primary-btn" @click="handlePublish">
-          发布文章
+        <button class="primary-btn" @click="handlePublish" :disabled="isPublishing">
+          {{ isPublishing ? '发布中...' : '发布文章' }}
         </button>
       </div>
     </header>
@@ -50,6 +50,7 @@
           placeholder="请输入文章标题..." 
           class="title-input" 
           autocomplete="off"
+          :disabled="isPublishing"
         />
       </div>
 
@@ -69,6 +70,7 @@
       :type="alertType"
       :title="alertTitle"
       :message="alertMessage"
+      @confirm="handleAlertConfirm"
     />
   </div>
 </template>
@@ -82,12 +84,17 @@ import { MdEditor, type ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
 import LightRays from '@/views/background/LightRays.vue';
 
+// 引入发布文章的 API
+import { publishArticleApi } from '@/api/article';
+
 const router = useRouter();
 
 // 响应式状态绑定
 const articleTitle = ref('');
 const articleContent = ref('');
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const isPublishing = ref(false); // 控制发布按钮状态
+const pendingRedirect = ref(false); // 控制弹窗确认后的跳转
 
 // 全局统一弹窗（替代原生 alert）
 const alertVisible = ref(false);
@@ -100,6 +107,14 @@ const showAlert = (payload: { type: 'success' | 'error'; title?: string; message
   alertTitle.value = payload.title ?? '提示';
   alertMessage.value = payload.message;
   alertVisible.value = true;
+};
+
+// 弹窗确认回调
+const handleAlertConfirm = () => {
+  if (pendingRedirect.value) {
+    pendingRedirect.value = false;
+    router.push('/userInfo'); // 发布成功后跳转回个人主页
+  }
 };
 
 // 自定义编辑器的工具栏配置（可根据你的需求增删）
@@ -163,8 +178,8 @@ const handleFileUpload = (event: Event) => {
   target.value = ''; 
 };
 
-// 发布逻辑占位
-const handlePublish = () => {
+// 真实发布逻辑
+const handlePublish = async () => {
   if (!articleTitle.value.trim()) {
     showAlert({
       type: 'error',
@@ -180,14 +195,44 @@ const handlePublish = () => {
     return;
   }
   
-  console.log('--- 准备发布 ---');
-  console.log('标题:', articleTitle.value);
-  console.log('内容:', articleContent.value);
-  showAlert({
-    type: 'success',
-    message: '文章发布成功！(模拟)'
-  });
-  router.push('/user'); // 发布完跳回个人页
+  try {
+    isPublishing.value = true;
+    
+    // 构造满足后端接口文档的请求体
+    const postData = {
+      title: articleTitle.value,
+      content: articleContent.value,
+      coverImage: 'https://images.unsplash.com/photo-1495103033382-fe343886b671?q=80&w=3870&auto=format&fit=crop', // 默认封面图，后续可接上传组件
+      status: 1, // 1表示已发布，0表示草稿
+      categoryId: 0 // 默认分类
+    };
+
+    // 调用 API
+    await publishArticleApi(postData);
+
+    // 成功提示并准备跳转
+    pendingRedirect.value = true;
+    showAlert({
+      type: 'success',
+      message: '文章发布成功！'
+    });
+
+    // 1.5秒后自动跳转（防抖动体验，用户也可以自己点弹窗的确认跳转）
+    setTimeout(() => {
+      if (pendingRedirect.value) {
+        handleAlertConfirm();
+      }
+    }, 1500);
+
+  } catch (error) {
+    console.error('发布文章失败:', error);
+    showAlert({
+      type: 'error',
+      message: '发布失败，请稍后重试或检查网络！'
+    });
+  } finally {
+    isPublishing.value = false;
+  }
 };
 </script>
 
@@ -263,6 +308,10 @@ button {
   transition: all 0.3s ease;
   border-radius: 8px;
 }
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .btn-icon {
   width: 16px;
   height: 16px;
@@ -275,7 +324,7 @@ button {
   color: rgba(255, 255, 255, 0.6);
   padding: 0.5rem;
 }
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.08);
 }
@@ -291,7 +340,7 @@ button {
   color: #e5e5e5;
   padding: 0.5rem 1rem;
 }
-.secondary-btn:hover {
+.secondary-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
 }
@@ -304,7 +353,7 @@ button {
   font-weight: 600;
   padding: 0.5rem 1.2rem;
 }
-.primary-btn:hover {
+.primary-btn:hover:not(:disabled) {
   background: #e0e0e0;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
@@ -342,6 +391,9 @@ button {
 }
 .title-input::placeholder {
   color: rgba(255, 255, 255, 0.2);
+}
+.title-input:disabled {
+  opacity: 0.7;
 }
 
 /* 编辑器外部包裹，确保其能自由缩放自适应高度 */

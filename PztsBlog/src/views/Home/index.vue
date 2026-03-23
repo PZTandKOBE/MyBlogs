@@ -159,12 +159,11 @@ const handleAlertCancel = () => {
 
 // 左上角个人信息按钮：判断是否登录
 const checkLoginAndGo = () => {
-  // 这里可以替换为你真实的 Pinia 状态或 Token 校验
-  // 暂时用 localStorage 模拟一下登录判断逻辑
-  const isLogin = localStorage.getItem('isLogin') === 'true'; 
+  // 修改这里：检查 token 是否存在，而不是检查 isLogin
+  const token = localStorage.getItem('token'); 
   
-  if (isLogin) {
-    // 已登录，跳转到刚才新建的访客个人信息页
+  if (token) {
+    // 有 token 说明已登录，跳转到访客个人信息页
     router.push('/userInfo');
   } else {
     // 未登录，提示并跳转到登录页

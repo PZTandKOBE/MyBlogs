@@ -50,7 +50,7 @@
           </div>
 
           <div class="comment-section-wrapper">
-            <CommentSection />
+            <CommentSection :article-id="route.params.id" />
           </div>
         </div>
 
@@ -58,23 +58,23 @@
           
           <div class="author-card glass-container">
             <div class="author-header">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Peng&backgroundColor=1a1a1a" alt="author avatar" class="author-avatar" />
+              <img :src="articleData.authorAvatar" alt="author avatar" class="author-avatar" />
               <div class="author-info">
-                <div class="author-name">彭梓涛</div>
-                <div class="author-title">前端开发工程师</div>
+                <div class="author-name">{{ articleData.author }}</div>
+                <div class="author-title">{{ articleData.authorTitle }}</div>
               </div>
             </div>
             <div class="author-stats">
               <div class="stat-item">
-                <span class="stat-num">42</span>
+                <span class="stat-num">{{ articleData.authorArticles }}</span>
                 <span class="stat-label">文章</span>
               </div>
               <div class="stat-item">
-                <span class="stat-num">128</span>
+                <span class="stat-num">{{ articleData.authorTags }}</span>
                 <span class="stat-label">标签</span>
               </div>
               <div class="stat-item">
-                <span class="stat-num">12.5k</span>
+                <span class="stat-num">{{ articleData.authorLikes }}</span>
                 <span class="stat-label">获赞</span>
               </div>
             </div>
@@ -116,13 +116,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
+import { useRoute } from "vue-router";
+import MarkdownIt from "markdown-it"; 
 import LightRays from "../background/LightRays.vue";
 import StaggeredMenu from "@/components/common/StaggeredMenu.vue";
 import logo from "@/assets/Blog.svg";
-// 引入评论区组件
 import CommentSection from "@/components/comment/index.vue";
 
-// 菜单状态与数据
+// 引入文章详情 API 和 获取用户详情 API
+import { getArticleDetailApi } from "@/api/article";
+import { getUserByIdApi } from "@/api/user";
+
+const route = useRoute();
+
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  breaks: true
+});
+
 const isMenuOpen = ref(false);
 const menuItems = [
   { label: 'Home', ariaLabel: 'Go to home page', link: '/home' },
@@ -138,16 +150,13 @@ const socialItems = [
 const handleMenuOpen = () => { isMenuOpen.value = true; };
 const handleMenuClose = () => { isMenuOpen.value = false; };
 
-// DOM 引用
 const scrollWrapper = ref<HTMLElement | null>(null);
 const articleBody = ref<HTMLElement | null>(null);
 
-// 状态控制
 const progress = ref(0);
 const showBackToTop = ref(false);
 const activeId = ref("");
 
-// 目录类型与数据
 interface TocItem {
   id: string;
   text: string;
@@ -155,67 +164,75 @@ interface TocItem {
 }
 const toc = ref<TocItem[]>([]);
 
-// 模拟扩展的 Markdown 假数据
+// 增加作者相关的响应式字段兜底
 const articleData = ref({
-  title: 'Vue3 组合式 API 的最佳实践与思考',
-  author: '彭梓涛',
-  date: '2026-03-10',
-  content: `
-    <p>在现代前端项目开发中，优雅地组织和复用代码逻辑是提高开发效率和维护性的关键。今天我们来探讨一下组合式 API 的一些核心思想。</p>
-    
-    <h2>1. 什么是组合式 API？</h2>
-    <p>组合式 API (Composition API) 是一系列 API 的集合，使我们可以使用函数而不是声明选项的方式书写 Vue 组件。</p>
-    
-    <h3>基础示例</h3>
-    <pre><code>import { ref, onMounted } from 'vue'
-
-export default {
-  setup() {
-    const count = ref(0)
-    
-    onMounted(() => {
-      console.log('Component is mounted!')
-    })
-    
-    return { count }
-  }
-}</code></pre>
-
-    <h2>2. 为什么选择它？</h2>
-    <p>相比于传统的 Options API，Composition API 带来了诸多优势：</p>
-    <ul>
-      <li>更好的逻辑复用机制（摆脱 Mixins 的烦恼）</li>
-      <li>更灵活的代码组织形态（按功能聚合代码）</li>
-      <li>优秀的 TypeScript 类型推导支持</li>
-    </ul>
-
-    <h3>深入响应式原理</h3>
-    <p>Vue3 使用了 Proxy 代理对象替代了 Vue2 的 Object.defineProperty，这使得响应式系统更加高效且无死角。</p>
-    <pre><code>const state = reactive({
-  user: '彭梓涛',
-  role: 'Frontend Developer'
-})
-
-// 监听状态变化
-watchEffect(() => {
-  console.log(\`User is \${state.user}\`)
-})</code></pre>
-
-    <h2>3. 实践中的避坑指南</h2>
-    <p>虽然很强大，但在实际使用中也容易犯一些错误，比如丢失响应式：</p>
-    <blockquote>
-      "解构 reactive 对象时，务必记得使用 toRefs，否则你将失去 Vue 的魔法加持。"
-    </blockquote>
-
-    <h3>生命周期的变迁</h3>
-    <p>大部分生命周期钩子都加上了 on 前缀，比如 onMounted、onUpdated 等等，这让它们可以像普通函数一样被随处调用。</p>
-
-    <h2>4. 总结展望</h2>
-    <p>希望这篇文章能给你在构建大型 Vue 应用时带来一些启发。代码不仅仅是给机器运行的，更是给人阅读的。拥抱组合式 API，让我们的前端工程化更进一阶！</p>
-  `
+  title: '加载中...',
+  author: '...',
+  authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Peng&backgroundColor=1a1a1a',
+  authorTitle: '...',
+  authorArticles: 0,
+  authorTags: 0,
+  authorLikes: '0',
+  date: '...',
+  content: '<p>正在加载文章内容...</p>'
 });
 
-// 解析文章生成目录并注入代码块功能
+const fetchArticleDetail = async () => {
+  const articleId = route.params.id;
+  if (!articleId) return;
+
+  try {
+    // 1. 第一步：拉取文章详情
+    const res = await getArticleDetailApi(articleId as string);
+    if (res && res.data) {
+      const rawContent = res.data.content || '暂无内容';
+      
+      // 先将文章本身的数据映射上去，同时给作者信息一个初步的默认值
+      articleData.value = {
+        title: res.data.title || '无标题',
+        author: res.data.authorName || res.data.author || '匿名作者',
+        authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest&backgroundColor=1a1a1a',
+        authorTitle: '专栏作者',
+        authorArticles: 0, 
+        authorTags: 0,
+        authorLikes: '0',
+        date: res.data.createTime || res.data.date || '刚刚发布',
+        content: md.render(rawContent) 
+      };
+
+      // 提取作者 ID（兼容后端可能命名为 authorId 或是 userId）
+      const authorId = res.data.authorId || res.data.userId;
+
+      // 2. 第二步：如果存在作者 ID，发起拉取作者详情的请求
+      if (authorId) {
+        try {
+          const userRes = await getUserByIdApi(authorId);
+          if (userRes && userRes.data) {
+            // 使用拉取到的真实作者数据覆盖默认值
+            articleData.value.author = userRes.data.username || articleData.value.author;
+            articleData.value.authorAvatar = userRes.data.avatar || userRes.data.avatarUrl || articleData.value.authorAvatar;
+            articleData.value.authorTitle = userRes.data.title || userRes.data.role || articleData.value.authorTitle;
+            // 统计数据如果有就覆盖，没有就保留默认
+            articleData.value.authorArticles = userRes.data.articleCount || userRes.data.repoCount || 42;
+            articleData.value.authorTags = userRes.data.tagsCount || 128;
+            articleData.value.authorLikes = userRes.data.likesCount || userRes.data.followerCount || '12.5k';
+          }
+        } catch (userError) {
+          console.warn('获取文章作者详细信息失败，将使用兜底信息展示', userError);
+        }
+      }
+
+      // 等待 DOM 渲染完毕，初始化目录和代码块复制
+      await nextTick();
+      initArticleEnhancements();
+    }
+  } catch (error) {
+    console.error('获取文章详情失败:', error);
+    articleData.value.title = '获取失败';
+    articleData.value.content = '<p>文章加载失败，请检查网络或刷新重试。</p>';
+  }
+};
+
 const initArticleEnhancements = async () => {
   await nextTick();
   if (!articleBody.value) return;
@@ -258,7 +275,6 @@ const initArticleEnhancements = async () => {
   });
 };
 
-// 监听滚动：更新进度条、返回顶部按钮和动态高亮目录
 const handleScroll = () => {
   if (!scrollWrapper.value) return;
   const { scrollTop, scrollHeight, clientHeight } = scrollWrapper.value;
@@ -281,7 +297,6 @@ const handleScroll = () => {
   activeId.value = currentId;
 };
 
-// 点击目录平滑滚动
 const scrollTo = (id: string) => {
   const el = document.getElementById(id);
   if (el && scrollWrapper.value) {
@@ -293,13 +308,12 @@ const scrollTo = (id: string) => {
   }
 };
 
-// 返回顶部
 const scrollToTop = () => {
   scrollWrapper.value?.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 onMounted(() => {
-  initArticleEnhancements();
+  fetchArticleDetail();
 });
 </script>
 
@@ -399,11 +413,9 @@ onMounted(() => {
   align-self: start;
   justify-self: start;
   margin-left: 2.5rem;
-  /* 与主体保持优雅距离 */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  /* 两个卡片之间的间距 */
 }
 
 /* ================= 宽版玻璃拟态容器 ================= */
@@ -427,15 +439,8 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ================= 作者信息卡片样式 ================= */
