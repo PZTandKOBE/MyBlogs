@@ -106,6 +106,15 @@
           </form>
         </div>
       </div>
+
+      <AlertModal
+        v-model:visible="alertVisible"
+        :type="alertType"
+        :title="alertTitle"
+        :message="alertMessage"
+        @confirm="handleAlertConfirm"
+        @cancel="handleAlertCancel"
+      />
     </div>
   </template>
   
@@ -113,9 +122,41 @@
   import { ref } from 'vue';
   import { useRouter } from 'vue-router';
   import LightRays from '@/views/background/LightRays.vue';
+  import AlertModal from '@/views/Error/index.vue';
   
   const router = useRouter();
   
+  const alertVisible = ref(false);
+  const alertType = ref<'success' | 'error' | 'confirm'>('success');
+  const alertTitle = ref('提示');
+  const alertMessage = ref('');
+  const pendingRedirect = ref(false);
+
+  const showAlert = ({
+    type = 'success',
+    title = '提示',
+    message
+  }: {
+    type?: 'success' | 'error' | 'confirm';
+    title?: string;
+    message: string;
+  }) => {
+    alertType.value = type;
+    alertTitle.value = title;
+    alertMessage.value = message;
+    alertVisible.value = true;
+  };
+
+  const handleAlertConfirm = () => {
+    if (!pendingRedirect.value) return;
+    pendingRedirect.value = false;
+    router.push('/');
+  };
+
+  const handleAlertCancel = () => {
+    pendingRedirect.value = false;
+  };
+
   // 控制修改资料弹窗的显隐
   const showEditModal = ref(false);
   
@@ -161,13 +202,20 @@
   const saveProfile = () => {
     // 模拟保存逻辑
     showEditModal.value = false;
-    alert('资料保存成功！');
+    pendingRedirect.value = false;
+    showAlert({
+      type: 'success',
+      message: '资料保存成功！'
+    });
   };
   
   const handleLogout = () => {
     localStorage.removeItem('isLogin');
-    alert('已退出登录！');
-    router.push('/');
+    pendingRedirect.value = true;
+    showAlert({
+      type: 'success',
+      message: '已退出登录！'
+    });
   };
   </script>
   

@@ -99,10 +99,20 @@
 
       </div>
     </div>
+
+    <AlertModal
+      v-model:visible="alertVisible"
+      :type="alertType"
+      :title="alertTitle"
+      :message="alertMessage"
+      @confirm="handleAlertConfirm"
+      @cancel="handleAlertCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router'; 
 import Beams from "@/views/background/Beams.vue";
 import CardNav from "@/components/common/CardNav.vue";
@@ -110,10 +120,42 @@ import ListCard from "@/components/common/ListCard.vue";
 import logo from "@/assets/Blog.svg";
 import musicCard from "@/components/common/musicCard.vue";
 import RollingGallery from "@/components/common/RollingGallery.vue"; 
+import AlertModal from '@/views/Error/index.vue';
 
 const router = useRouter();
 
 // ================= 路由跳转逻辑 =================
+
+const alertVisible = ref(false);
+const alertType = ref<'success' | 'error' | 'confirm'>('error');
+const alertTitle = ref('提示');
+const alertMessage = ref('');
+const pendingRedirect = ref(false);
+
+const showAlert = ({
+  type = 'error',
+  title = '提示',
+  message
+}: {
+  type?: 'success' | 'error' | 'confirm';
+  title?: string;
+  message: string;
+}) => {
+  alertType.value = type;
+  alertTitle.value = title;
+  alertMessage.value = message;
+  alertVisible.value = true;
+};
+
+const handleAlertConfirm = () => {
+  if (!pendingRedirect.value) return;
+  pendingRedirect.value = false;
+  router.push('/login');
+};
+
+const handleAlertCancel = () => {
+  pendingRedirect.value = false;
+};
 
 // 左上角个人信息按钮：判断是否登录
 const checkLoginAndGo = () => {
@@ -126,8 +168,12 @@ const checkLoginAndGo = () => {
     router.push('/userInfo');
   } else {
     // 未登录，提示并跳转到登录页
-    alert('检测到您尚未登录，请先登录！');
-    router.push('/login');
+    pendingRedirect.value = true;
+    showAlert({
+      type: 'error',
+      title: '未登录',
+      message: '检测到您尚未登录，请先登录！'
+    });
   }
 };
 

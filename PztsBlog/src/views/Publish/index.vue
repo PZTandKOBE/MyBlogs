@@ -63,12 +63,20 @@
         />
       </div>
     </main>
+
+    <AlertModal
+      v-model:visible="alertVisible"
+      :type="alertType"
+      :title="alertTitle"
+      :message="alertMessage"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AlertModal from '@/views/Error/index.vue';
 // 引入 MdEditorV3 及其核心样式
 import { MdEditor, type ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
@@ -80,6 +88,19 @@ const router = useRouter();
 const articleTitle = ref('');
 const articleContent = ref('');
 const fileInputRef = ref<HTMLInputElement | null>(null);
+
+// 全局统一弹窗（替代原生 alert）
+const alertVisible = ref(false);
+const alertType = ref<'success' | 'error'>('success');
+const alertTitle = ref('提示');
+const alertMessage = ref('');
+
+const showAlert = (payload: { type: 'success' | 'error'; title?: string; message: string }) => {
+  alertType.value = payload.type;
+  alertTitle.value = payload.title ?? '提示';
+  alertMessage.value = payload.message;
+  alertVisible.value = true;
+};
 
 // 自定义编辑器的工具栏配置（可根据你的需求增删）
 const toolbars: ToolbarNames[] = [
@@ -109,7 +130,10 @@ const handleFileUpload = (event: Event) => {
   
   // 仅允许 .md 或文本文件
   if (!file.name.endsWith('.md') && file.type !== 'text/markdown' && file.type !== 'text/plain') {
-    alert('请上传标准的 Markdown (.md) 文件！');
+    showAlert({
+      type: 'error',
+      message: '请上传标准的 Markdown (.md) 文件！'
+    });
     target.value = ''; // 清空选中状态
     return;
   }
@@ -128,7 +152,10 @@ const handleFileUpload = (event: Event) => {
   };
   
   reader.onerror = () => {
-    alert('读取文件失败，请重试！');
+    showAlert({
+      type: 'error',
+      message: '读取文件失败，请重试！'
+    });
   };
 
   reader.readAsText(file, 'UTF-8');
@@ -139,18 +166,27 @@ const handleFileUpload = (event: Event) => {
 // 发布逻辑占位
 const handlePublish = () => {
   if (!articleTitle.value.trim()) {
-    alert('请填写文章标题！');
+    showAlert({
+      type: 'error',
+      message: '请填写文章标题！'
+    });
     return;
   }
   if (!articleContent.value.trim()) {
-    alert('文章内容不能为空！');
+    showAlert({
+      type: 'error',
+      message: '文章内容不能为空！'
+    });
     return;
   }
   
   console.log('--- 准备发布 ---');
   console.log('标题:', articleTitle.value);
   console.log('内容:', articleContent.value);
-  alert('文章发布成功！(模拟)');
+  showAlert({
+    type: 'success',
+    message: '文章发布成功！(模拟)'
+  });
   router.push('/user'); // 发布完跳回个人页
 };
 </script>
