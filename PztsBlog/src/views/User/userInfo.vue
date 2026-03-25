@@ -68,8 +68,14 @@
                   <span class="status-pill" :class="article.status">{{ article.statusText }}</span>
                 </div>
                 <div class="article-meta">
-                  <span class="meta-item">发布于：{{ article.date }}</span>
-                  <span class="meta-item">阅读量：{{ article.views }}</span>
+                  <div class="meta-left">
+                    <span class="meta-item">发布于：{{ article.date }}</span>
+                    <span class="meta-item">阅读量：{{ article.views }}</span>
+                  </div>
+                  <button class="delete-article-btn" @click.stop="confirmDeleteArticle(article.id)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    删除
+                  </button>
                 </div>
               </div>
             </div>
@@ -120,7 +126,8 @@ import { useRouter } from 'vue-router';
 import LightRays from '@/views/background/LightRays.vue';
 import AlertModal from '@/views/Error/index.vue';
 import { getCurrentUserApi } from '@/api/user';
-import { getArticleListApi } from '@/api/article';
+// 引入写好的 deleteArticleApi
+import { getArticleListApi, deleteArticleApi } from '@/api/article';
 
 const router = useRouter();
 
@@ -128,7 +135,10 @@ const alertVisible = ref(false);
 const alertType = ref<'success' | 'error' | 'confirm'>('success');
 const alertTitle = ref('提示');
 const alertMessage = ref('');
-const pendingRedirect = ref(false);
+
+// 用于区分当前弹窗是为了“退出登录”还是“删除文章”
+const pendingAction = ref<'logout' | 'deleteArticle' | null>(null);
+const deleteTargetId = ref<number | null>(null);
 
 const showAlert = ({
   type = 'success',
@@ -145,63 +155,76 @@ const showAlert = ({
   alertVisible.value = true;
 };
 
-const handleAlertConfirm = () => {
-  if (!pendingRedirect.value) return;
-  pendingRedirect.value = false;
-  // 退出登录后跳转回首页
-  router.push('/Home');
+// 点击确认按钮时的统一处理
+const handleAlertConfirm = async () => {
+  if (pendingAction.value === 'logout') {
+    localStorage.removeItem('token');
+    router.push('/Home');
+  } else if (pendingAction.value === 'deleteArticle' && deleteTargetId.value !== null) {
+    try {
+      const res = await deleteArticleApi(deleteTargetId.value);
+      if (res && res.code === 200) {
+        // 从前端列表中剔除被删除的文章
+        publishedArticles.value = publishedArticles.value.filter(a => a.id !== deleteTargetId.value);
+        // 稍微延时弹出成功提示，避免两个弹窗动画冲突
+        setTimeout(() => {
+          showAlert({ type: 'success', title: '删除成功', message: '文章已彻底删除！' });
+        }, 300);
+      } else {
+        setTimeout(() => {
+          showAlert({ type: 'error', title: '删除失败', message: res.message || '操作失败，请重试' });
+        }, 300);
+      }
+    } catch (error) {
+      setTimeout(() => {
+        showAlert({ type: 'error', title: '网络错误', message: '请求失败，请检查网络或后端状态' });
+      }, 300);
+    }
+  }
+  
+  pendingAction.value = null;
+  deleteTargetId.value = null;
 };
 
 const handleAlertCancel = () => {
-  pendingRedirect.value = false;
+  pendingAction.value = null;
+  deleteTargetId.value = null;
 };
 
-// 控制修改资料弹窗的显隐
 const showEditModal = ref(false);
 
-// 响应式用户信息（预设回退值，防止白屏）
 const userInfo = ref({
   username: '彭梓涛',
   email: 'pengzitao@example.com',
   bio: '保持热爱，奔赴山海。'
 });
 
-// 响应式文章列表
 const publishedArticles = ref<any[]>([]);
 
-// 获取当前登录用户数据
 const fetchUserData = async () => {
   try {
     const res = await getCurrentUserApi();
     if (res && res.data) {
-      // 动态覆盖数据，如果后端没返回对应的字段，就使用原本的兜底数据
       userInfo.value.username = res.data.username || userInfo.value.username;
       userInfo.value.email = res.data.email || userInfo.value.email;
       userInfo.value.bio = res.data.bio || userInfo.value.bio;
     }
   } catch (error) {
-    console.error("获取个人资料失败，可能是未登录或 Token 失效", error);
-    // 这里可选：如果获取失败强制跳回登录页
+    console.error("获取个人资料失败", error);
   }
 };
 
-// 获取文章列表数据
 const fetchUserArticles = async () => {
   try {
-    // 调用通用的获取文章列表接口（目前取前 100 条作为演示，后续可增加分页或专属用户的参数）
     const res = await getArticleListApi({ pageNum: 1, pageSize: 100 });
     if (res && res.data) {
-      // 假设后端返回的是一个数组，或者包裹在 list 字段中
       const list = Array.isArray(res.data) ? res.data : (res.data.list || []);
       
       publishedArticles.value = list.map((item: any) => ({
         id: item.id,
         title: item.title,
-        // 如果后端没有返回创建时间，给个默认文本
         date: item.createTime || item.date || '刚刚',
-        // 如果后端没有返回阅读量，默认为 0
         views: item.views || 0,
-        // 根据接口文档，0-草稿，1-已发布
         status: item.status === 1 ? 'published' : 'draft',
         statusText: item.status === 1 ? '已发布' : '草稿'
       }));
@@ -211,7 +234,6 @@ const fetchUserArticles = async () => {
   }
 };
 
-// 组件挂载时触发接口调用
 onMounted(() => {
   fetchUserData();
   fetchUserArticles();
@@ -222,11 +244,7 @@ const goBack = () => {
 };
 
 const saveProfile = () => {
-  // 预留位置：未来在这里调用 PUT /api/users 修改个人信息的接口
-  // const res = await updateProfileApi(userInfo.value);
-  
   showEditModal.value = false;
-  pendingRedirect.value = false;
   showAlert({
     type: 'success',
     message: '资料保存成功！'
@@ -234,12 +252,22 @@ const saveProfile = () => {
 };
 
 const handleLogout = () => {
-  // 彻底清除后端的 Token 凭证
-  localStorage.removeItem('token');
-  pendingRedirect.value = true;
+  pendingAction.value = 'logout';
   showAlert({
-    type: 'success',
-    message: '已退出登录！'
+    type: 'confirm',
+    title: '退出登录',
+    message: '确定要退出当前账号吗？'
+  });
+};
+
+// 唤起删除文章的二次确认弹窗
+const confirmDeleteArticle = (id: number) => {
+  pendingAction.value = 'deleteArticle';
+  deleteTargetId.value = id;
+  showAlert({
+    type: 'confirm',
+    title: '删除文章',
+    message: '确定要彻底删除这篇文章吗？此操作不可恢复！'
   });
 };
 </script>
@@ -589,10 +617,45 @@ const handleLogout = () => {
 
 .article-meta {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meta-left {
+    display: flex;
     gap: 1.5rem;
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.4);
     font-family: "Fira Code", monospace;
+}
+
+.delete-article-btn {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0; 
+}
+
+.delete-article-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.article-item:hover .delete-article-btn {
+    opacity: 1; /* 鼠标悬浮在文章上才显示删除按钮，保持界面极简 */
+}
+
+.delete-article-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.6);
 }
 
 /* ================= 弹窗 Modal 样式 ================= */
@@ -750,5 +813,4 @@ const handleLogout = () => {
         position: static;
     }
 }
-
 </style>

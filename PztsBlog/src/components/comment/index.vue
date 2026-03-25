@@ -44,6 +44,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 回复
               </button>
+              <button v-if="comment.user?.name === currentUser.name" class="action-btn delete-action" @click="confirmDeleteComment(comment.id)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                删除
+              </button>
             </div>
           </div>
         </div>
@@ -67,6 +71,10 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                   回复
                 </button>
+                <button v-if="reply.user?.name === currentUser.name" class="action-btn delete-action" @click="confirmDeleteComment(reply.id)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                  删除
+                </button>
               </div>
             </div>
           </div>
@@ -86,13 +94,25 @@
         </div>
       </div>
     </div>
+    
+    <Teleport to="body">
+      <AlertModal
+        v-model:visible="alertVisible"
+        :type="alertType"
+        :title="alertTitle"
+        :message="alertMessage"
+        @confirm="handleAlertConfirm"
+        @cancel="handleAlertCancel"
+      />
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
-import { getCommentListApi, publishCommentApi } from '@/api/comment';
+import { getCommentListApi, publishCommentApi, deleteCommentApi } from '@/api/comment';
 import { getCurrentUserApi } from '@/api/user';
+import AlertModal from '@/views/Error/index.vue';
 
 const props = defineProps({
   articleId: {
@@ -103,7 +123,6 @@ const props = defineProps({
 
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest&backgroundColor=1a1a1a';
 
-// 登录用户信息（给个初始默认值）
 const currentUser = ref({
   id: null as string | number | null,
   name: '游客',
@@ -116,16 +135,54 @@ const totalComments = computed(() => {
   return comments.value.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0);
 });
 
-// 状态控制
 const mainCommentText = ref('');
 const activeReplyId = ref<number | null>(null);
 const replyTargetName = ref('');
 const replyText = ref('');
 const replyInputRef = ref<HTMLTextAreaElement | null>(null);
 
+// === 弹窗与删除控制 ===
+const alertVisible = ref(false);
+const alertType = ref<'success' | 'error' | 'confirm'>('success');
+const alertTitle = ref('');
+const alertMessage = ref('');
+const deleteTargetCommentId = ref<number | null>(null);
+
+const showAlert = (type: any, title: string, message: string) => {
+  alertType.value = type;
+  alertTitle.value = title;
+  alertMessage.value = message;
+  alertVisible.value = true;
+};
+
+const confirmDeleteComment = (commentId: number) => {
+  deleteTargetCommentId.value = commentId;
+  showAlert('confirm', '删除评论', '确定要删除这条评论吗？删除后将无法恢复。');
+};
+
+const handleAlertConfirm = async () => {
+  if (deleteTargetCommentId.value !== null) {
+    try {
+      const res = await deleteCommentApi(deleteTargetCommentId.value);
+      if (res && res.code === 200) {
+        setTimeout(() => showAlert('success', '删除成功', '评论已彻底删除！'), 300);
+        await fetchComments();
+      } else {
+        setTimeout(() => showAlert('error', '删除失败', res.message || '操作失败，请重试'), 300);
+      }
+    } catch (error) {
+      setTimeout(() => showAlert('error', '网络错误', '请求发生错误，请检查网络或后端状态'), 300);
+    }
+    deleteTargetCommentId.value = null;
+  }
+};
+
+const handleAlertCancel = () => {
+  deleteTargetCommentId.value = null;
+};
+
 // ================== API 交互逻辑 ==================
 
-// 1. 获取当前登录用户信息
 const fetchCurrentUser = async () => {
   try {
     const res = await getCurrentUserApi();
@@ -141,7 +198,6 @@ const fetchCurrentUser = async () => {
   }
 };
 
-// 2. 获取评论列表
 const fetchComments = async () => {
   if (!props.articleId) return;
   try {
@@ -150,7 +206,6 @@ const fetchComments = async () => {
       const list = Array.isArray(res.data) ? res.data : (res.data.list || []);
       
       comments.value = list.map((item: any) => {
-        // 抹平后端字段差异
         let userName = item.authorName || '匿名用户';
         let userAvatar = defaultAvatar;
 
@@ -158,7 +213,6 @@ const fetchComments = async () => {
           userName = item.user.name || item.user.username || userName;
           userAvatar = item.user.avatar || item.user.avatarUrl || userAvatar;
         } else if (item.userId && item.userId === currentUser.value.id) {
-          // 如果后端没联表返回用户信息，但刚好是自己发的，就用自己的信息展示
           userName = currentUser.value.name;
           userAvatar = currentUser.value.avatar;
         }
@@ -177,13 +231,11 @@ const fetchComments = async () => {
   }
 };
 
-// 3. 提交主评论 (乐观更新)
 const submitMainComment = async () => {
   if (!mainCommentText.value.trim()) return;
   
   const textToPublish = mainCommentText.value;
   
-  // 乐观更新：不等后端返回，前端直接先把评论怼上去，极致流畅
   const newComment = {
     id: Date.now(),
     user: { name: currentUser.value.name, avatar: currentUser.value.avatar },
@@ -202,16 +254,13 @@ const submitMainComment = async () => {
       content: textToPublish,
       imageUrl: '' 
     });
-    // 可选：真正发布成功后静默拉取一下最新列表同步其他人的评论
-    // fetchComments();
   } catch (error) {
     console.error('发布评论失败:', error);
-    comments.value.shift(); // 如果发布失败，把刚才塞进去的假评论撤回来
-    alert('发布失败，请确保您已登录！');
+    comments.value.shift(); 
+    showAlert('error', '发布失败', '请确保您已登录！');
   }
 };
 
-// 4. 打开回复框
 const openReplyBox = (commentId: number, targetName?: string) => {
   activeReplyId.value = commentId;
   replyTargetName.value = targetName || comments.value.find(c => c.id === commentId)?.user.name || '匿名';
@@ -221,7 +270,6 @@ const openReplyBox = (commentId: number, targetName?: string) => {
   });
 };
 
-// 5. 提交楼中楼回复 (乐观更新)
 const submitReply = async (commentId: number) => {
   if (!replyText.value.trim()) return;
   
@@ -229,7 +277,6 @@ const submitReply = async (commentId: number) => {
   const textToPublish = replyText.value;
   const finalContent = `回复 @${replyTargetName.value} : ${textToPublish}`;
   
-  // 乐观更新
   const newReply = {
     id: Date.now(),
     user: { name: currentUser.value.name, avatar: currentUser.value.avatar },
@@ -257,27 +304,22 @@ const submitReply = async (commentId: number) => {
     });
   } catch (error) {
     console.error('回复失败:', error);
-    if (targetComment) targetComment.replies.pop(); // 失败则撤回
-    alert('回复失败，请确保您已登录！');
+    if (targetComment) targetComment.replies.pop(); 
+    showAlert('error', '回复失败', '请确保您已登录！');
   }
 };
-
-// ================== 前端交互 ==================
 
 const toggleLike = (item: any) => {
   item.isLiked = !item.isLiked;
   item.likes += item.isLiked ? 1 : -1;
 };
 
-// 初始化
 onMounted(() => {
-  // 并行拉取用户信息和评论列表
   fetchCurrentUser().then(() => {
     fetchComments();
   });
 });
 
-// 监听文章ID变化，重新加载评论
 watch(() => props.articleId, () => {
   fetchComments();
 });
@@ -310,7 +352,6 @@ watch(() => props.articleId, () => {
   font-weight: 400;
 }
 
-/* 输入区通用样式 */
 textarea {
   width: 95%;
   background: rgba(255, 255, 255, 0.03);
@@ -366,7 +407,6 @@ textarea:focus {
   color: rgba(255, 255, 255, 0.3);
 }
 
-/* 按钮样式 */
 button {
   cursor: pointer;
   border: none;
@@ -402,7 +442,6 @@ button {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* 评论列表 */
 .comment-item {
   margin-bottom: 2rem;
 }
@@ -471,8 +510,10 @@ button {
 .action-btn.active {
   color: #ef4444; 
 }
+.action-btn.delete-action:hover {
+  color: #ef4444;
+}
 
-/* 楼中楼容器 */
 .replies-container {
   margin-top: 1.5rem;
   margin-left: 3.5rem;
@@ -480,7 +521,6 @@ button {
   border-left: 2px solid rgba(255, 255, 255, 0.08);
 }
 
-/* 楼中楼回复输入框 */
 .reply-input-area {
   margin-top: 1.5rem;
   margin-left: 3.5rem;
@@ -488,7 +528,8 @@ button {
   flex-direction: column;
   gap: 0.8rem;
 }
-.reply-input-actions {
+.reply-input-actions 
+{
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;

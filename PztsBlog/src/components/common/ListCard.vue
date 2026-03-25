@@ -1,5 +1,5 @@
 <template>
-  <div class="list-card-wrapper glass-container">
+  <div class="list-card-wrapper glass-container" ref="listWrapperRef">
     <div v-if="articles.length === 0" class="empty-state">
       <div class="empty-icon">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -11,46 +11,135 @@
       <div class="empty-line"></div>
     </div>
 
-    <div v-else class="article-list">
-      <div 
-        v-for="item in articles" 
-        :key="item.id" 
-        class="article-item"
-        @click="goToArticle(item.id)"
-      >
-        <h3 class="article-title">{{ item.title }}</h3>
-        <p class="article-summary">{{ item.summary }}</p>
-        <div class="article-meta">
-          <span class="author">By {{ item.author }}</span>
-          <span class="date">{{ item.date }}</span>
+    <div v-else class="article-content-container">
+      <div class="article-list">
+        <div 
+          v-for="item in articles" 
+          :key="item.id" 
+          class="article-item"
+          @click="goToArticle(item.id)"
+        >
+          <h3 class="article-title">
+            <span v-if="item.categoryName" class="category-badge">{{ item.categoryName }}</span>
+            {{ item.title }}
+          </h3>
+          <p class="article-summary">{{ item.summary }}</p>
+          <div class="article-meta">
+            <span class="author">By {{ item.author }}</span>
+            <span class="date">{{ item.date }}</span>
+          </div>
         </div>
+      </div>
+
+      <div class="pagination-container">
+        <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          上一页
+        </button>
+        
+        <span class="page-info">
+          {{ totalPages > 0 ? `${currentPage} / ${totalPages}` : `第 ${currentPage} 页` }}
+        </span>
+
+        <button class="page-btn" :disabled="!hasNextPage" @click="nextPage">
+          下一页
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getArticleListApi } from '@/api/article';
 
 const router = useRouter();
 
-// 响应式文章列表
+const props = defineProps({
+  categoryId: {
+    type: [Number, String, null],
+    default: null
+  },
+  // 接收从首页导航栏传来的查询关键词
+  keyword: {
+    type: String,
+    default: ''
+  }
+});
+
+const listWrapperRef = ref<HTMLElement | null>(null);
 const articles = ref<any[]>([]);
 
-// 获取真实的文章列表数据
+const currentPage = ref(1);
+const pageSize = ref(10);
+const totalArticles = ref(0); 
+
+const totalPages = computed(() => {
+  return totalArticles.value > 0 ? Math.ceil(totalArticles.value / pageSize.value) : 0;
+});
+
+const hasNextPage = computed(() => {
+  if (totalPages.value > 0) {
+    return currentPage.value < totalPages.value;
+  }
+  return articles.value.length === pageSize.value;
+});
+
+const categoryMap: Record<number, string> = {
+  1: '生活',
+  2: '游戏',
+  3: '技术'
+};
+
+const formatTime = (timeStr: string) => {
+  if (!timeStr) return '刚刚发布';
+  const date = new Date(timeStr);
+  if (isNaN(date.getTime())) return timeStr; 
+  
+  const Y = date.getFullYear();
+  const M = String(date.getMonth() + 1).padStart(2, '0');
+  const D = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${Y}-${M}-${D} ${h}:${m}`;
+};
+
+const scrollToTop = () => {
+  if (listWrapperRef.value) {
+    listWrapperRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
 const fetchArticles = async () => {
   try {
-    // 默认请求第一页，每页 10 条（如果后续加了分页可以做成动态变量）
-    const res = await getArticleListApi({ pageNum: 1, pageSize: 10 });
+    const params: any = { 
+      pageNum: currentPage.value, 
+      pageSize: pageSize.value 
+    };
+    
+    if (props.categoryId) {
+      params.categoryId = Number(props.categoryId);
+    }
+
+    // 将 keyword 加入到 API 请求中
+    if (props.keyword) {
+      params.keyword = props.keyword;
+    }
+    
+    const res = await getArticleListApi(params);
     
     if (res && res.data) {
-      // 兼容后端返回的是纯数组，或是包裹在 list 字段里的情况
       const list = Array.isArray(res.data) ? res.data : (res.data.list || []);
+      totalArticles.value = res.data.total || 0; 
       
       articles.value = list.map((item: any) => {
-        // 提取摘要：如果有 summary 字段就用，没有的话截取 content 前 80 个字符
         let generateSummary = item.summary;
         if (!generateSummary && item.content) {
           generateSummary = item.content.length > 80 
@@ -62,8 +151,9 @@ const fetchArticles = async () => {
           id: item.id,
           title: item.title || '无标题',
           summary: generateSummary || '暂无摘要',
-          date: item.createTime || item.date || '刚刚发布',
-          author: item.authorName || item.author || '彭梓涛'
+          date: formatTime(item.createTime || item.date),
+          author: item.authorName || item.author || '彭梓涛',
+          categoryName: categoryMap[item.categoryId] || ''
         };
       });
     }
@@ -72,7 +162,26 @@ const fetchArticles = async () => {
   }
 };
 
-// 组件挂载时自动获取数据
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    fetchArticles().then(scrollToTop);
+  }
+};
+
+const nextPage = () => {
+  if (hasNextPage.value) {
+    currentPage.value++;
+    fetchArticles().then(scrollToTop);
+  }
+};
+
+// 监听分类ID或关键词的变化：只要改了就重置到第一页，并重新请求
+watch(() => [props.categoryId, props.keyword], () => {
+  currentPage.value = 1;
+  fetchArticles().then(scrollToTop);
+});
+
 onMounted(() => {
   fetchArticles();
 });
@@ -83,18 +192,17 @@ const goToArticle = (id: number) => {
 </script>
 
 <style scoped>
-/* ================= 外部大框：仅保留玻璃底色，无 Hover 动效 ================= */
 .list-card-wrapper {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* 内容超出时允许滚动 */
+  overflow-y: auto;
   padding: 1.5rem;
-  box-sizing: border-box; /* 关键：防止 padding 撑破容器 */
+  box-sizing: border-box;
+  scroll-behavior: smooth;
 }
 
-/* 隐藏滚动条，保持页面整洁 */
 .list-card-wrapper::-webkit-scrollbar {
   display: none;
 }
@@ -107,11 +215,17 @@ const goToArticle = (id: number) => {
   border-radius: 20px;
 }
 
-/* ================= 内部文章列表及卡片动效 ================= */
+.article-content-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .article-list {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
+  flex: 1;
 }
 
 .article-item {
@@ -123,7 +237,6 @@ const goToArticle = (id: number) => {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 核心：将悬浮特效精准赋予每一张内部卡片 */
 .article-item:hover {
   transform: translateY(-4px);
   background: rgba(255, 255, 255, 0.06);
@@ -132,12 +245,26 @@ const goToArticle = (id: number) => {
 }
 
 .article-title {
+  display: flex;
+  align-items: center;
   font-family: sans-serif;
   font-size: 1.25rem;
   font-weight: 600;
   color: #ffffff;
   margin: 0 0 0.6rem 0;
   letter-spacing: 0.5px;
+}
+
+.category-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  margin-right: 0.6rem;
+  font-weight: normal;
+  color: rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
 }
 
 .article-summary {
@@ -148,7 +275,7 @@ const goToArticle = (id: number) => {
   margin: 0 0 1.2rem 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2; /* 限制摘要最多显示两行 */
+  -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
@@ -166,9 +293,57 @@ const goToArticle = (id: number) => {
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* ================= 空状态样式 ================= */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.page-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: "Fira Code", monospace;
+  letter-spacing: 1px;
+}
+
 .empty-state {
-  flex: 1; 
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,10 +367,10 @@ const goToArticle = (id: number) => {
 .empty-text {
   font-family: sans-serif;
   font-size: 1.1rem;
-  letter-spacing: 0.25em; 
+  letter-spacing: 0.25em;
   margin: 0;
   font-weight: 300;
-  text-indent: 0.25em; 
+  text-indent: 0.25em;
 }
 
 .empty-line {

@@ -14,7 +14,6 @@
     
     <div class="scrollable-content">
       <div class="sticky-nav-wrapper">
-        
         <div class="user-btn-container">
           <button class="Btn" @click="checkLoginAndGo" title="个人设置">
             <span class="svgContainer">
@@ -29,7 +28,8 @@
         <CardNav
           :logo="logo"
           logoAlt="Company Logo"
-          :items="items"
+          :items="navItems"
+          @search="handleSearch"
           baseColor="#fff"
           menuColor="#000"
           buttonBgColor="#111"
@@ -38,81 +38,58 @@
         />
 
         <div class="login-btn-container">
-          <button class="login-btn" @click="goToLogin">
+          <button v-if="!isLoggedIn" class="login-btn" @click="goToLogin">
             登 录
           </button>
+          <button v-else class="login-btn logout-btn" @click="handleLogout">
+            退出账号
+          </button>
         </div>
-
       </div>
 
       <div class="main-layout">
-        
         <div class="left-nav-container">
           <ul class="ul">
-            <li class="li">
-              <button class="button" @click="goToPublish"><p class="p">工作台</p></button>
-            </li>
-            
+            <li class="li"><button class="button" @click="goToPublish"><p class="p">工作台</p></button></li>
             <li class="li has-submenu">
-              <button class="button"><p class="p">文章类型</p></button>
+              <button class="button" @click="filterByCategory(null)"><p class="p">文章类型</p></button>
               <div class="submenu-wrapper">
                 <div class="submenu-inner">
                   <ul class="submenu">
-                    <li class="sub-li">
-                      <button class="sub-button"><p class="p">技术</p></button>
-                    </li>
-                    <li class="sub-li">
-                      <button class="sub-button"><p class="p">游戏</p></button>
-                    </li>
-                    <li class="sub-li">
-                      <button class="sub-button"><p class="p">生活</p></button>
-                    </li>
+                    <li class="sub-li"><button class="sub-button" :class="{ active: selectedCategoryId === null }" @click="filterByCategory(null)"><p class="p">全部文章</p></button></li>
+                    <li class="sub-li"><button class="sub-button" :class="{ active: selectedCategoryId === 3 }" @click="filterByCategory(3)"><p class="p">技术</p></button></li>
+                    <li class="sub-li"><button class="sub-button" :class="{ active: selectedCategoryId === 2 }" @click="filterByCategory(2)"><p class="p">游戏</p></button></li>
+                    <li class="sub-li"><button class="sub-button" :class="{ active: selectedCategoryId === 1 }" @click="filterByCategory(1)"><p class="p">生活</p></button></li>
                   </ul>
                 </div>
               </div>
             </li>
-
-            <li class="li">
-              <button class="button" @click="goToAuthorInfo"><p class="p">作者信息</p></button>
-            </li>
+            <li class="li"><button class="button" @click="goToAuthorInfo"><p class="p">作者信息</p></button></li>
           </ul>
         </div>
 
         <div class="middle-content-container">
           <div class="list-wrapper">
-            <ListCard />
+            <ListCard :categoryId="selectedCategoryId" :keyword="searchKeyword" />
           </div>
-
           <div class="gallery-wrapper">
             <h2 class="gallery-title">My travel photos</h2>
-            <RollingGallery
-              :autoplay="true"
-              :pause-on-hover="true"
-              :images="customImages"
-            />
+            <RollingGallery :autoplay="true" :pause-on-hover="true" />
           </div>
         </div>
 
         <div class="right-placeholder">
           <musicCard />
         </div>
-
       </div>
     </div>
 
-    <AlertModal
-      v-model:visible="alertVisible"
-      :type="alertType"
-      :title="alertTitle"
-      :message="alertMessage"
-      @confirm="handleAlertConfirm"
-      @cancel="handleAlertCancel"
-    />
+    <AlertModal v-model:visible="alertVisible" :type="alertType" :title="alertTitle" :message="alertMessage" @confirm="handleAlertConfirm" @cancel="handleAlertCancel" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router'; 
 import Beams from "@/views/background/Beams.vue";
 import CardNav from "@/components/common/CardNav.vue";
@@ -124,114 +101,99 @@ import AlertModal from '@/views/Error/index.vue';
 
 const router = useRouter();
 
-// ================= 路由跳转逻辑 =================
+const isLoggedIn = ref(false);
+const selectedCategoryId = ref<number | null>(null);
+const searchKeyword = ref('');
 
 const alertVisible = ref(false);
 const alertType = ref<'success' | 'error' | 'confirm'>('error');
 const alertTitle = ref('提示');
 const alertMessage = ref('');
 const pendingRedirect = ref(false);
+const pendingAction = ref<'logout' | null>(null);
 
-const showAlert = ({
-  type = 'error',
-  title = '提示',
-  message
-}: {
-  type?: 'success' | 'error' | 'confirm';
-  title?: string;
-  message: string;
-}) => {
-  alertType.value = type;
-  alertTitle.value = title;
-  alertMessage.value = message;
-  alertVisible.value = true;
+onMounted(() => {
+  isLoggedIn.value = !!localStorage.getItem('token');
+});
+
+// 处理搜索回车事件
+const handleSearch = (kw: string) => {
+  searchKeyword.value = kw;
 };
 
-const handleAlertConfirm = () => {
-  if (!pendingRedirect.value) return;
-  pendingRedirect.value = false;
-  router.push('/login');
+const filterByCategory = (id: number | null) => {
+  selectedCategoryId.value = id;
 };
 
-const handleAlertCancel = () => {
-  pendingRedirect.value = false;
-};
-
-// 左上角个人信息按钮：判断是否登录
-const checkLoginAndGo = () => {
-  // 修改这里：检查 token 是否存在，而不是检查 isLogin
-  const token = localStorage.getItem('token'); 
-  
-  if (token) {
-    // 有 token 说明已登录，跳转到访客个人信息页
-    router.push('/userInfo');
-  } else {
-    // 未登录，提示并跳转到登录页
-    pendingRedirect.value = true;
-    showAlert({
-      type: 'error',
-      title: '未登录',
-      message: '检测到您尚未登录，请先登录！'
-    });
-  }
-};
-
-const goToLogin = () => {
-  router.push('/login');
-};
-
-const goToPublish = () => {
-  router.push('/publish');
-};
-
-const goToAuthorInfo = () => {
-  router.push('/user');
-};
-
-// ===============================================
-
-const items = [
+// ================= 重构：专属你的下拉菜单配置 =================
+const navItems = computed(() => [
   {
-    label: "About",
+    label: "创作管理",
     bgColor: "#0D0716",
     textColor: "#fff",
     links: [
-      { label: "Company", ariaLabel: "About Company" },
-      { label: "Careers", ariaLabel: "About Careers" }
+      { label: "写新文章", ariaLabel: "Publish", href: "/publish" },
+      { label: "个人资料设置", ariaLabel: "User Settings", href: "/userInfo" }
     ]
   },
   {
-    label: "Projects",
+    label: "文章发现",
     bgColor: "#170D27",
     textColor: "#fff",
     links: [
-      { label: "Featured", ariaLabel: "Featured Projects" },
-      { label: "Case Studies", ariaLabel: "Project Case Studies" }
+      { label: "查看全部", ariaLabel: "All", action: () => filterByCategory(null) },
+      { label: "技术前沿", ariaLabel: "Tech", action: () => filterByCategory(3) },
+      { label: "游戏世界", ariaLabel: "Game", action: () => filterByCategory(2) },
+      { label: "生活随笔", ariaLabel: "Life", action: () => filterByCategory(1) }
     ]
   },
   {
-    label: "Contact",
+    label: "关于博客",
     bgColor: "#271E37",
     textColor: "#fff",
     links: [
-      { label: "Email", ariaLabel: "Email us" },
-      { label: "Twitter", ariaLabel: "Twitter" },
-      { label: "LinkedIn", ariaLabel: "LinkedIn" }
+      { label: "作者信息", ariaLabel: "Author Info", href: "/user" }
     ]
   }
-];
+]);
 
-const customImages = [
-  "https://images.unsplash.com/photo-1528181304800-259b08848526?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  "https://images.unsplash.com/photo-1506665531195-3566af2b4dfa?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=3456&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  "https://images.unsplash.com/photo-1495103033382-fe343886b671?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  "https://images.unsplash.com/photo-1506781961370-37a89d6b3095?q=80&w=3264&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-];
+const showAlert = ({ type = 'error', title = '提示', message }: any) => {
+  alertType.value = type; alertTitle.value = title; alertMessage.value = message; alertVisible.value = true;
+};
+
+const handleAlertConfirm = () => {
+  if (pendingAction.value === 'logout') {
+    localStorage.removeItem('token');
+    isLoggedIn.value = false;
+    pendingAction.value = null;
+  } else if (pendingRedirect.value) {
+    pendingRedirect.value = false;
+    router.push('/login');
+  }
+};
+
+const handleAlertCancel = () => {
+  pendingAction.value = null;
+  pendingRedirect.value = false;
+};
+
+const handleLogout = () => {
+  pendingAction.value = 'logout';
+  showAlert({ type: 'confirm', title: '退出登录', message: '确定要退出当前账号吗？' });
+};
+
+const checkLoginAndGo = () => {
+  const token = localStorage.getItem('token'); 
+  if (token) { router.push('/userInfo'); } 
+  else { pendingRedirect.value = true; showAlert({ type: 'error', title: '未登录', message: '检测到您尚未登录，请先登录！' }); }
+};
+
+const goToLogin = () => router.push('/login');
+const goToPublish = () => router.push('/publish');
+const goToAuthorInfo = () => router.push('/user');
 </script>
 
 <style scoped>
-/* =========== 这里是原有的 CSS 样式，保持不变 =========== */
 .beams-container {
   width: 100%;
   height: 100vh;
@@ -372,6 +334,17 @@ const customImages = [
 
 .login-btn:active {
   transform: translateY(0);
+}
+
+.logout-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .main-layout {
@@ -586,6 +559,22 @@ const customImages = [
 }
 
 .sub-button:hover::after {
+  opacity: 0;
+}
+
+.sub-button.active {
+  color: #000000;
+}
+
+.sub-button.active::before {
+  width: 100%;
+  height: 100%;
+  left: 0;
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.sub-button.active::after {
   opacity: 0;
 }
 

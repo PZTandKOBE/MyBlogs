@@ -1,3 +1,4 @@
+fullText:
 <template>
   <div class="main">
     <div class="currentplaying">
@@ -226,7 +227,7 @@ onBeforeUnmount(() => {
   height: 5em;
   padding-left: 1em;
   padding-right: 1em;
-  transform: rotate(180deg);
+  transform: rotate(180deg); /* 这是整体卡片反转180° */
   justify-content: right;
   border-radius: 10px;
   transition: .4s ease-in-out;
@@ -280,14 +281,19 @@ onBeforeUnmount(() => {
 
 .play {
   position: relative;
-  left: 0.35em;
+  /* position: right; */ /* 这个属性是非法的，删掉了 */
   height: 1.6em;
   width: 1.6em;
-  clip-path: polygon(50% 50%, 100% 50%, 75% 6.6%);
+  
+  /* --- 修正：更标准的播放三角形 clip-path 样式 --- */
+  clip-path: polygon(15% 5%, 15% 95%, 95% 50%);
   background-color: #f1f1f1;
-  transform: rotate(-90deg);
+  
+  /* --- 新增修正：负负得正，让播放按钮正过来并且指向右侧 --- */
+  transform: rotate(180deg);
+  
   align-self: center;
-  margin-top: 0.7em;
+  margin-top: 0.7em; /* 保持原有的位置偏移，也可以微调 */
   justify-self: center;
 }
 
@@ -299,11 +305,14 @@ onBeforeUnmount(() => {
   background-color: #3a3a3a;
   align-self: center;
   border-radius: 5px;
+  
+  /* --- 关键修正：负负得正，把图片正过来！！！ --- */
+  transform: rotate(180deg);
 }
 
 .song {
   position: relative;
-  transform: rotate(180deg);
+  transform: rotate(180deg); /* 文字已经是正的了，不用动 */
   margin-right: 1em;
   color: #f1f1f1;
   align-self: center;
@@ -382,20 +391,18 @@ onBeforeUnmount(() => {
 
 .volume-bar { width: 80px; }
 
-/* --- 新增：过渡动画样式 --- */
-/* 定义进入（显示）和离开（隐藏）过程中的过渡状态 */
+/* --- 过渡动画样式 --- */
 .slide-fade-enter-active {
-  transition: all 0.4s ease-out; /* 弹出时稍快一点，感觉灵敏 */
+  transition: all 0.4s ease-out;
 }
 
 .slide-fade-leave-active {
-  transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1); /* 收回时带点缓动，感觉优雅 */
+  transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
 }
 
-/* 定义进入的开始状态和离开的结束状态 */
 .slide-fade-enter-from,
 .slide-fade-leave-to {
-  transform: translateY(20px); /* 向下滑动 20px */
-  opacity: 0; /* 完全透明 */
+  transform: translateY(20px);
+  opacity: 0;
 }
 </style>

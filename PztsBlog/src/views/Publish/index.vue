@@ -54,6 +54,22 @@
         />
       </div>
 
+      <div class="category-selector-wrapper">
+        <span class="category-label">分类：</span>
+        <div class="category-tags">
+          <button 
+            v-for="cat in categoryOptions" 
+            :key="cat.id" 
+            class="cat-btn"
+            :class="{ active: currentCategoryId === cat.id }"
+            @click="currentCategoryId = cat.id"
+            :disabled="isPublishing"
+          >
+            {{ cat.name }}
+          </button>
+        </div>
+      </div>
+
       <div class="md-editor-wrapper">
         <MdEditor 
           v-model="articleContent" 
@@ -79,12 +95,9 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AlertModal from '@/views/Error/index.vue';
-// 引入 MdEditorV3 及其核心样式
 import { MdEditor, type ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
 import LightRays from '@/views/background/LightRays.vue';
-
-// 引入发布文章的 API
 import { publishArticleApi } from '@/api/article';
 
 const router = useRouter();
@@ -93,10 +106,17 @@ const router = useRouter();
 const articleTitle = ref('');
 const articleContent = ref('');
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const isPublishing = ref(false); // 控制发布按钮状态
-const pendingRedirect = ref(false); // 控制弹窗确认后的跳转
+const isPublishing = ref(false); 
+const pendingRedirect = ref(false); 
 
-// 全局统一弹窗（替代原生 alert）
+// 新增：分类相关响应数据（默认选中 3-技术）
+const currentCategoryId = ref(3);
+const categoryOptions = [
+  { id: 1, name: '生活' },
+  { id: 2, name: '游戏' },
+  { id: 3, name: '技术' }
+];
+
 const alertVisible = ref(false);
 const alertType = ref<'success' | 'error'>('success');
 const alertTitle = ref('提示');
@@ -109,57 +129,46 @@ const showAlert = (payload: { type: 'success' | 'error'; title?: string; message
   alertVisible.value = true;
 };
 
-// 弹窗确认回调
 const handleAlertConfirm = () => {
   if (pendingRedirect.value) {
     pendingRedirect.value = false;
-    router.push('/userInfo'); // 发布成功后跳转回个人主页
+    router.push('/userInfo'); 
   }
 };
 
-// 自定义编辑器的工具栏配置（可根据你的需求增删）
 const toolbars: ToolbarNames[] = [
   'bold', 'underline', 'italic', '-', 'strikeThrough', 'title', 'sub', 'sup', 'quote', 'unorderedList', 'orderedList', 'task', '-', 
   'codeRow', 'code', 'link', 'image', 'table', 'mermaid', 'katex', '-', 
   'revoke', 'next', 'save', '=', 'pageFullscreen', 'fullscreen', 'preview', 'htmlPreview', 'catalog'
 ];
 
-// 返回上一页
 const goBack = () => {
   router.back();
 };
 
-// 触发隐藏的 input 唤起文件选择框
 const triggerFileInput = () => {
   if (fileInputRef.value) {
     fileInputRef.value.click();
   }
 };
 
-// 核心逻辑：读取本地 .md 文件内容并写入编辑器
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (!target.files || target.files.length === 0) return;
 
   const file = target.files[0];
   
-  // 仅允许 .md 或文本文件
   if (!file.name.endsWith('.md') && file.type !== 'text/markdown' && file.type !== 'text/plain') {
-    showAlert({
-      type: 'error',
-      message: '请上传标准的 Markdown (.md) 文件！'
-    });
-    target.value = ''; // 清空选中状态
+    showAlert({ type: 'error', message: '请上传标准的 Markdown (.md) 文件！' });
+    target.value = ''; 
     return;
   }
 
-  // 使用 FileReader 读取文件内容
   const reader = new FileReader();
   reader.onload = (e) => {
     const result = e.target?.result;
     if (typeof result === 'string') {
       articleContent.value = result;
-      // 可选：将文件名作为默认标题（去掉 .md 后缀）
       if (!articleTitle.value) {
         articleTitle.value = file.name.replace(/\.md$/i, '');
       }
@@ -167,57 +176,40 @@ const handleFileUpload = (event: Event) => {
   };
   
   reader.onerror = () => {
-    showAlert({
-      type: 'error',
-      message: '读取文件失败，请重试！'
-    });
+    showAlert({ type: 'error', message: '读取文件失败，请重试！' });
   };
 
   reader.readAsText(file, 'UTF-8');
-  // 读取完后清空 input 的 value，保证下次选同一个文件依然能触发 change 事件
   target.value = ''; 
 };
 
-// 真实发布逻辑
 const handlePublish = async () => {
   if (!articleTitle.value.trim()) {
-    showAlert({
-      type: 'error',
-      message: '请填写文章标题！'
-    });
+    showAlert({ type: 'error', message: '请填写文章标题！' });
     return;
   }
   if (!articleContent.value.trim()) {
-    showAlert({
-      type: 'error',
-      message: '文章内容不能为空！'
-    });
+    showAlert({ type: 'error', message: '文章内容不能为空！' });
     return;
   }
   
   try {
     isPublishing.value = true;
     
-    // 构造满足后端接口文档的请求体
+    // 动态传入分类ID
     const postData = {
       title: articleTitle.value,
       content: articleContent.value,
-      coverImage: 'https://images.unsplash.com/photo-1495103033382-fe343886b671?q=80&w=3870&auto=format&fit=crop', // 默认封面图，后续可接上传组件
-      status: 1, // 1表示已发布，0表示草稿
-      categoryId: 0 // 默认分类
+      coverImage: 'https://images.unsplash.com/photo-1495103033382-fe343886b671?q=80&w=3870&auto=format&fit=crop', 
+      status: 1, 
+      categoryId: currentCategoryId.value
     };
 
-    // 调用 API
     await publishArticleApi(postData);
 
-    // 成功提示并准备跳转
     pendingRedirect.value = true;
-    showAlert({
-      type: 'success',
-      message: '文章发布成功！'
-    });
+    showAlert({ type: 'success', message: '文章发布成功！' });
 
-    // 1.5秒后自动跳转（防抖动体验，用户也可以自己点弹窗的确认跳转）
     setTimeout(() => {
       if (pendingRedirect.value) {
         handleAlertConfirm();
@@ -226,10 +218,7 @@ const handlePublish = async () => {
 
   } catch (error) {
     console.error('发布文章失败:', error);
-    showAlert({
-      type: 'error',
-      message: '发布失败，请稍后重试或检查网络！'
-    });
+    showAlert({ type: 'error', message: '发布失败，请稍后重试或检查网络！' });
   } finally {
     isPublishing.value = false;
   }
@@ -237,7 +226,6 @@ const handlePublish = async () => {
 </script>
 
 <style scoped>
-/* 根容器，撑满全屏，防止原生滚动 */
 .publish-page-container {
   width: 100%;
   height: 100vh;
@@ -250,7 +238,6 @@ const handlePublish = async () => {
   font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
-/* 纯黑与光线背景 */
 .background-layer {
   position: absolute;
   top: 0;
@@ -262,7 +249,6 @@ const handlePublish = async () => {
   opacity: 0.5;
 }
 
-/* 毛玻璃顶部栏 */
 .top-action-bar {
   position: relative;
   z-index: 10;
@@ -282,7 +268,6 @@ const handlePublish = async () => {
   gap: 1rem;
 }
 
-/* 中间草稿状态提示 */
 .center-info {
   display: flex;
   align-items: center;
@@ -293,12 +278,11 @@ const handlePublish = async () => {
 .status-dot {
   width: 8px;
   height: 8px;
-  background-color: #10b981; /* 绿色圆点表示正常 */
+  background-color: #10b981; 
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
-/* 按钮基础通用样式 */
 button {
   display: flex;
   align-items: center;
@@ -317,7 +301,6 @@ button:disabled {
   height: 16px;
 }
 
-/* 导航图标按钮 */
 .icon-btn {
   background: transparent;
   border: none;
@@ -333,7 +316,6 @@ button:disabled {
   height: 20px;
 }
 
-/* 次要按钮 (导入文件) */
 .secondary-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -345,7 +327,6 @@ button:disabled {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* 主要按钮 (发布) */
 .primary-btn {
   background: #ffffff;
   border: 1px solid #ffffff;
@@ -359,7 +340,6 @@ button:disabled {
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
-/* 主体编辑区域，弹性布局占满剩余空间 */
 .editor-main-container {
   position: relative;
   z-index: 10;
@@ -371,12 +351,11 @@ button:disabled {
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
-  min-height: 0; /* 修复 Flexbox 导致的高度溢出问题 */
+  min-height: 0; 
 }
 
-/* 沉浸式大标题输入框 */
 .title-input-wrapper {
-  padding: 1.5rem 2rem 1rem 2rem;
+  padding: 1.5rem 2rem 0.5rem 2rem;
 }
 .title-input {
   width: 100%;
@@ -396,27 +375,58 @@ button:disabled {
   opacity: 0.7;
 }
 
-/* 编辑器外部包裹，确保其能自由缩放自适应高度 */
+/* 标签选择器样式 */
+.category-selector-wrapper {
+  padding: 0 2rem 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.category-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+.category-tags {
+  display: flex;
+  gap: 0.8rem;
+}
+.cat-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.3rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+.cat-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.cat-btn.active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  border-color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
 .md-editor-wrapper {
   flex: 1;
   padding: 0 2rem 2rem 2rem;
   display: flex;
-  min-height: 0; /* 修复 Flexbox 导致的高度溢出问题 */
+  min-height: 0; 
 }
 
-/* 覆盖/优化 MdEditorV3 默认样式的细节，使其更契合系统 */
 .custom-md-editor {
   flex: 1;
   height: 100%;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
   box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-  /* 设置编辑器整体底层为更深邃的黑 */
   --md-bk-color: rgba(12, 12, 12, 0.8) !important; 
   backdrop-filter: blur(10px);
 }
 
-/* 微调编辑器内部组件的透明度，打造极致的黑暗简约感 */
 :deep(.md-editor-toolbar-wrapper) {
   background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;

@@ -123,7 +123,6 @@ import StaggeredMenu from "@/components/common/StaggeredMenu.vue";
 import logo from "@/assets/Blog.svg";
 import CommentSection from "@/components/comment/index.vue";
 
-// 引入文章详情 API 和 获取用户详情 API
 import { getArticleDetailApi } from "@/api/article";
 import { getUserByIdApi } from "@/api/user";
 
@@ -138,13 +137,12 @@ const md = new MarkdownIt({
 const isMenuOpen = ref(false);
 const menuItems = [
   { label: 'Home', ariaLabel: 'Go to home page', link: '/home' },
-  { label: 'Store', ariaLabel: 'View our store', link: '/store' },
-  { label: 'Portal', ariaLabel: 'Go to portal', link: '/portal' }
+  { label: 'Publish', ariaLabel: 'View our Pulish', link: '/publish' },
+  { label: 'Author', ariaLabel: 'Go to Author', link: '/user' }
 ];
 const socialItems = [
-  { label: 'Twitter', link: 'https://twitter.com' },
-  { label: 'GitHub', link: 'https://github.com' },
-  { label: 'LinkedIn', link: 'https://linkedin.com' }
+  { label: '掘金社区', link: 'https://juejin.cn/user/2341282279346538' },
+  { label: 'GitHub', link: 'https://github.com/PZTandKOBE' },
 ];
 
 const handleMenuOpen = () => { isMenuOpen.value = true; };
@@ -164,7 +162,6 @@ interface TocItem {
 }
 const toc = ref<TocItem[]>([]);
 
-// 增加作者相关的响应式字段兜底
 const articleData = ref({
   title: '加载中...',
   author: '...',
@@ -177,52 +174,61 @@ const articleData = ref({
   content: '<p>正在加载文章内容...</p>'
 });
 
+const formatTime = (timeStr: string) => {
+  if (!timeStr) return '刚刚发布';
+  const date = new Date(timeStr);
+  if (isNaN(date.getTime())) return timeStr; 
+  
+  const Y = date.getFullYear();
+  const M = String(date.getMonth() + 1).padStart(2, '0');
+  const D = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${Y}-${M}-${D} ${h}:${m}`;
+};
+
 const fetchArticleDetail = async () => {
   const articleId = route.params.id;
   if (!articleId) return;
 
   try {
-    // 1. 第一步：拉取文章详情
     const res = await getArticleDetailApi(articleId as string);
     if (res && res.data) {
       const rawContent = res.data.content || '暂无内容';
       
-      // 先将文章本身的数据映射上去，同时给作者信息一个初步的默认值
       articleData.value = {
         title: res.data.title || '无标题',
-        author: res.data.authorName || res.data.author || '匿名作者',
-        authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest&backgroundColor=1a1a1a',
-        authorTitle: '专栏作者',
-        authorArticles: 0, 
-        authorTags: 0,
-        authorLikes: '0',
-        date: res.data.createTime || res.data.date || '刚刚发布',
+        author: res.data.authorName || res.data.author || '彭梓涛',
+        authorAvatar: res.data.authorAvatar || 'https://ts4.tc.mm.bing.net/th/id/OIP-C.eCAnJt0l-KUqG3LhjTvFmQHaHa?rs=1&pid=ImgDetMain&o=7&rm=3',
+        authorTitle: '博客主理人',
+        authorArticles: 42, 
+        authorTags: 128,
+        authorLikes: '12.5k',
+        date: formatTime(res.data.createTime || res.data.date),
         content: md.render(rawContent) 
       };
 
-      // 提取作者 ID（兼容后端可能命名为 authorId 或是 userId）
       const authorId = res.data.authorId || res.data.userId;
+      const token = localStorage.getItem('token');
 
-      // 2. 第二步：如果存在作者 ID，发起拉取作者详情的请求
-      if (authorId) {
+      // 【修改点 2】：智能判断 token，只有在登录状态下才去查用户信息，彻底避免游客访问时被拦截报错！
+      if (authorId && token) {
         try {
           const userRes = await getUserByIdApi(authorId);
           if (userRes && userRes.data) {
-            // 使用拉取到的真实作者数据覆盖默认值
             articleData.value.author = userRes.data.username || articleData.value.author;
             articleData.value.authorAvatar = userRes.data.avatar || userRes.data.avatarUrl || articleData.value.authorAvatar;
             articleData.value.authorTitle = userRes.data.title || userRes.data.role || articleData.value.authorTitle;
-            // 统计数据如果有就覆盖，没有就保留默认
-            articleData.value.authorArticles = userRes.data.articleCount || userRes.data.repoCount || 42;
-            articleData.value.authorTags = userRes.data.tagsCount || 128;
-            articleData.value.authorLikes = userRes.data.likesCount || userRes.data.followerCount || '12.5k';
+            articleData.value.authorArticles = userRes.data.articleCount || userRes.data.repoCount || articleData.value.authorArticles;
+            articleData.value.authorTags = userRes.data.tagsCount || articleData.value.authorTags;
+            articleData.value.authorLikes = userRes.data.likesCount || userRes.data.followerCount || articleData.value.authorLikes;
           }
         } catch (userError) {
           console.warn('获取文章作者详细信息失败，将使用兜底信息展示', userError);
         }
       }
 
-      // 等待 DOM 渲染完毕，初始化目录和代码块复制
       await nextTick();
       initArticleEnhancements();
     }
@@ -318,7 +324,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ================= 页面底层容器 ================= */
 .article-page {
   width: 100%;
   height: 100vh;
@@ -336,7 +341,6 @@ onMounted(() => {
   z-index: 0;
 }
 
-/* ================= 悬浮菜单容器 ================= */
 .fixed-menu-container {
   position: fixed;
   top: 0;
@@ -356,7 +360,6 @@ onMounted(() => {
   pointer-events: auto !important;
 }
 
-/* ================= 极细进度条 ================= */
 .progress-bar {
   position: absolute;
   top: 0;
@@ -368,7 +371,6 @@ onMounted(() => {
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.5);
 }
 
-/* ================= 独立滚动层 ================= */
 .scroll-wrapper {
   position: absolute;
   top: 0;
@@ -385,16 +387,15 @@ onMounted(() => {
   display: none;
 }
 
-/* ================= 网格布局排版 ================= */
+/* 【修改点 3】：拓宽网格容器，中间栏从 850px 放宽至 950px */
 .article-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(auto, 850px) 1fr;
+  grid-template-columns: 1fr minmax(auto, 950px) 1fr;
   width: 100%;
-  max-width: 1600px;
+  max-width: 1700px;
   margin: 0 auto;
 }
 
-/* 中间主内容包裹层（文章+评论） */
 .main-content-wrapper {
   grid-column: 2;
   width: 100%;
@@ -404,7 +405,6 @@ onMounted(() => {
   gap: 2rem;
 }
 
-/* ================= 右侧统一悬浮容器 ================= */
 .right-sidebar {
   grid-column: 3;
   width: 280px;
@@ -418,7 +418,6 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-/* ================= 宽版玻璃拟态容器 ================= */
 .glass-container {
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(12px);
@@ -432,7 +431,6 @@ onMounted(() => {
   padding: 3rem 4rem;
 }
 
-/* ================= 评论区外部容器 ================= */
 .comment-section-wrapper {
   width: 100%;
   animation: fadeIn 0.8s ease-out forwards;
@@ -443,7 +441,6 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ================= 作者信息卡片样式 ================= */
 .author-card {
   padding: 1.8rem;
 }
@@ -507,7 +504,6 @@ onMounted(() => {
   font-size: 0.8rem;
 }
 
-/* ================= 目录卡片样式 ================= */
 .toc-sidebar {
   padding: 1.8rem;
 }
@@ -572,7 +568,6 @@ onMounted(() => {
   box-shadow: 0 0 8px #ffffff;
 }
 
-/* ================= 文章信息与 Markdown ================= */
 .title {
   color: #ffffff;
   font-family: sans-serif;
@@ -607,6 +602,15 @@ onMounted(() => {
 .markdown-body {
   font-family: sans-serif;
   color: rgba(255, 255, 255, 0.85);
+}
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1.5rem 0;
+  display: block;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .markdown-body :deep(h2),
@@ -711,7 +715,6 @@ onMounted(() => {
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
-/* ================= 返回顶部按钮 ================= */
 .back-to-top {
   position: fixed;
   right: 2rem;
@@ -753,7 +756,6 @@ onMounted(() => {
   height: 24px;
 }
 
-/* 响应式调整 */
 @media (max-width: 1200px) {
   .article-layout {
     display: flex;
@@ -765,7 +767,7 @@ onMounted(() => {
   }
 
   .main-content-wrapper {
-    max-width: 800px;
+    max-width: 900px;
     padding: 0 1.5rem;
   }
 

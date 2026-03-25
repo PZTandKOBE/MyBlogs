@@ -3,9 +3,11 @@ import { gsap } from 'gsap';
 import { nextTick, onBeforeUpdate, onMounted, onUnmounted, ref, watch, type VNodeRef } from 'vue';
 import { useRouter } from 'vue-router';
 
+// 修改了类型支持：支持 href(路由跳转) 或 action(执行函数，如分类过滤)
 type CardNavLink = {
   label: string;
   href?: string;
+  action?: () => void;
   ariaLabel: string;
 };
 
@@ -35,26 +37,47 @@ const props = withDefaults(defineProps<CardNavProps>(), {
   baseColor: '#fff'
 });
 
+const emit = defineEmits(['search']);
 const router = useRouter();
+
+// 搜索关键词状态
+const searchQuery = ref('');
 
 const goToPublish = () => {
   router.push('/publish');
 };
 
+// 触发搜索事件
+const emitSearch = () => {
+  emit('search', searchQuery.value.trim());
+};
+
+// 统一下拉菜单的点击事件：支持跳转路由或执行函数
+const handleLinkClick = (lnk: CardNavLink) => {
+  if (lnk.action) {
+    lnk.action();
+  } else if (lnk.href) {
+    if (lnk.href.startsWith('http')) {
+      window.open(lnk.href, '_blank');
+    } else {
+      router.push(lnk.href);
+    }
+  }
+  // 点击后自动收起菜单
+  if (isExpanded.value) toggleMenu();
+};
+
 const isHamburgerOpen = ref(false);
 const isExpanded = ref(false);
-
 const navRef = ref<HTMLDivElement | null>(null);
 const cardsRef = ref<HTMLDivElement[]>([]);
 const tlRef = ref<gsap.core.Timeline | null>(null);
 
-const setCardRef =
-  (i: number): VNodeRef =>
-  el => {
-    if (el && el instanceof HTMLDivElement) {
-      cardsRef.value[i] = el;
-    }
-  };
+const setCardRef = (i: number): VNodeRef => el => {
+  if (el && el instanceof HTMLDivElement) {
+    cardsRef.value[i] = el;
+  }
+};
 
 onBeforeUpdate(() => {
   cardsRef.value = [];
@@ -98,13 +121,7 @@ const createTimeline = () => {
   gsap.set(cardsRef.value, { y: 50, opacity: 0 });
 
   const tl = gsap.timeline({ paused: true });
-
-  tl.to(navEl, {
-    height: calculateHeight,
-    duration: 0.4,
-    ease: props.ease
-  });
-
+  tl.to(navEl, { height: calculateHeight, duration: 0.4, ease: props.ease });
   tl.to(cardsRef.value, { y: 0, opacity: 1, duration: 0.4, ease: props.ease, stagger: 0.08 }, '-=0.1');
 
   return tl;
@@ -116,9 +133,7 @@ const toggleMenu = () => {
   if (!isExpanded.value) {
     isHamburgerOpen.value = true;
     isExpanded.value = true;
-    nextTick(() => {
-      tl.play(0);
-    });
+    nextTick(() => { tl.play(0); });
   } else {
     isHamburgerOpen.value = false;
     tl.eventCallback('onReverseComplete', () => {
@@ -131,11 +146,9 @@ const toggleMenu = () => {
 
 const handleResize = () => {
   if (!tlRef.value) return;
-
   if (isExpanded.value) {
     const newHeight = calculateHeight();
     gsap.set(navRef.value, { height: newHeight });
-
     tlRef.value.kill();
     const newTl = createTimeline();
     if (newTl) {
@@ -159,33 +172,19 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
 });
 
-watch(
-  () => [props.ease, props.items],
-  () => {
-    nextTick(() => {
-      if (tlRef.value) tlRef.value.kill();
-      tlRef.value = createTimeline();
-    });
-  }
-);
+watch(() => [props.ease, props.items], () => {
+  nextTick(() => {
+    if (tlRef.value) tlRef.value.kill();
+    tlRef.value = createTimeline();
+  });
+});
 </script>
 
 <template>
   <div :class="`card-nav-container ${props.className}`">
-    <nav
-      ref="navRef"
-      :class="['card-nav', { open: isExpanded }]"
-      :style="{ backgroundColor: props.baseColor }"
-    >
+    <nav ref="navRef" :class="['card-nav', { open: isExpanded }]" :style="{ backgroundColor: props.baseColor }">
       <div class="card-nav-top">
-        <div
-          :class="['hamburger-menu', { open: isHamburgerOpen }]"
-          @click="toggleMenu"
-          role="button"
-          :aria-label="isExpanded ? 'Close menu' : 'Open menu'"
-          tabindex="0"
-          :style="{ color: props.menuColor || '#000' }"
-        >
+        <div class="hamburger-menu" :class="{ open: isHamburgerOpen }" @click="toggleMenu" role="button">
           <div class="hamburger-line line-1" />
           <div class="hamburger-line line-2" />
         </div>
@@ -196,53 +195,24 @@ watch(
             <div class="darkBorderBg"></div>
             <div class="darkBorderBg"></div>
             <div class="darkBorderBg"></div>
-
             <div class="white"></div>
             <div class="border"></div>
 
             <div id="main">
-              <input placeholder="Search  " type="text" name="text" class="input" />
+              <input 
+                v-model="searchQuery" 
+                @keyup.enter="emitSearch"
+                placeholder="搜索文章并回车..." 
+                type="text" 
+                class="input" 
+              />
               <div id="input-mask"></div>
               <div id="pink-mask"></div>
               <div class="filterBorder"></div>
-              <div id="filter-icon">
-                <svg
-                  preserveAspectRatio="none"
-                  height="27"
-                  width="27"
-                  viewBox="4.8 4.56 14.832 15.408"
-                  fill="none"
-                >
-                  <path
-                    d="M8.16 6.65002H15.83C16.47 6.65002 16.99 7.17002 16.99 7.81002V9.09002C16.99 9.56002 16.7 10.14 16.41 10.43L13.91 12.64C13.56 12.93 13.33 13.51 13.33 13.98V16.48C13.33 16.83 13.1 17.29 12.81 17.47L12 17.98C11.24 18.45 10.2 17.92 10.2 16.99V13.91C10.2 13.5 9.97 12.98 9.73 12.69L7.52 10.36C7.23 10.08 7 9.55002 7 9.20002V7.87002C7 7.17002 7.52 6.65002 8.16 6.65002Z"
-                    stroke="#d6d6e6"
-                    stroke-width="1"
-                    stroke-miterlimit="10"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  ></path>
-                </svg>
-              </div>
-              <div id="search-icon">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  viewBox="0 0 24 24"
-                  stroke-width="2"
-                  stroke-linejoin="round"
-                  stroke-linecap="round"
-                  height="24"
-                  fill="none"
-                  class="feather feather-search"
-                >
+              <div id="search-icon" @click="emitSearch" style="cursor: pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" height="24" fill="none" class="feather feather-search">
                   <circle stroke="url(#search)" r="8" cy="11" cx="11"></circle>
-                  <line
-                    stroke="url(#searchl)"
-                    y2="16.65"
-                    y1="22"
-                    x2="16.65"
-                    x1="22"
-                  ></line>
+                  <line stroke="url(#searchl)" y2="16.65" y1="22" x2="16.65" x1="22"></line>
                   <defs>
                     <linearGradient gradientTransform="rotate(50)" id="search">
                       <stop stop-color="#f8e7f8" offset="0%"></stop>
@@ -259,56 +229,17 @@ watch(
           </div>
         </div>
 
-        <button
-          type="button"
-          class="card-nav-cta-button"
-          @click="goToPublish"
-          :style="{
-            backgroundColor: props.buttonBgColor,
-            color: props.buttonTextColor
-          }"
-        >
+        <button type="button" class="card-nav-cta-button" @click="goToPublish" :style="{ backgroundColor: props.buttonBgColor, color: props.buttonTextColor }">
           <h2>+</h2>
         </button>
       </div>
 
-      <div
-        :class="['card-nav-content', isExpanded ? 'visible' : 'invisible']"
-        :aria-hidden="!isExpanded"
-      >
-        <div
-          v-for="(item, idx) in (props.items || []).slice(0, 3)"
-          :key="`${item.label}-${idx}`"
-          :ref="setCardRef(idx)"
-          class="nav-card"
-          :style="{ backgroundColor: item.bgColor, color: item.textColor }"
-        >
-          <div class="nav-card-label">
-            {{ item.label }}
-          </div>
+      <div :class="['card-nav-content', isExpanded ? 'visible' : 'invisible']" :aria-hidden="!isExpanded">
+        <div v-for="(item, idx) in (props.items || []).slice(0, 3)" :key="`${item.label}-${idx}`" :ref="setCardRef(idx)" class="nav-card" :style="{ backgroundColor: item.bgColor, color: item.textColor }">
+          <div class="nav-card-label">{{ item.label }}</div>
           <div class="nav-card-links">
-            <a
-              v-for="(lnk, i) in item.links"
-              :key="`${lnk.label}-${i}`"
-              class="nav-card-link"
-              :href="lnk.href"
-              :aria-label="lnk.ariaLabel"
-            >
-              <svg 
-                class="nav-card-link-icon" 
-                width="16" 
-                height="16" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                stroke-width="2" 
-                stroke-linecap="round" 
-                stroke-linejoin="round" 
-                aria-hidden="true"
-              >
-                <line x1="7" y1="17" x2="17" y2="7"></line>
-                <polyline points="7 7 17 7 17 17"></polyline>
-              </svg>
+            <a v-for="(lnk, i) in item.links" :key="`${lnk.label}-${i}`" class="nav-card-link" @click.prevent="handleLinkClick(lnk)">
+              <svg class="nav-card-link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
               {{ lnk.label }}
             </a>
           </div>
@@ -336,7 +267,6 @@ watch(
   border-radius: 0.75rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   position: relative;
-  /* 修复点 3：移除 overflow: hidden，让发光特效能够跨越导航条边界 */
   will-change: height;
   box-sizing: border-box;
 }
@@ -376,6 +306,7 @@ watch(
 .hamburger-menu.open .line-1 {
   transform: translateY(4px) rotate(45deg);
 }
+
 .hamburger-menu.open .line-2 {
   transform: translateY(-4px) rotate(-45deg);
 }
@@ -416,10 +347,8 @@ watch(
   visibility: hidden;
   pointer-events: none;
   box-sizing: border-box;
-  
-  /* 修复点 3 补充：接管上面移除的 overflow，防止卡片动画溢出 */
-  overflow: hidden; 
-  border-radius: 0 0 0.75rem 0.75rem; 
+  overflow: hidden;
+  border-radius: 0 0 0.75rem 0.75rem;
 }
 
 .card-nav-content.visible {
@@ -473,17 +402,14 @@ watch(
   flex-shrink: 0;
 }
 
-/* ================= 赛博朋克搜索框核心样式 ================= */
-
 #poda {
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  /* 修复点 1：定制硬边框，预留光效空间 */
-  width: 354px;   
-  height: 130px;  
-  transform: scale(0.75); 
+  width: 354px;
+  height: 130px;
+  transform: scale(0.75);
   transform-origin: center center;
   z-index: 1;
 }
@@ -492,7 +418,6 @@ watch(
 .border,
 .darkBorderBg,
 .glow {
-  /* 修复点 2：完美的绝对居中定位 */
   position: absolute;
   top: 50%;
   left: 50%;
@@ -503,7 +428,6 @@ watch(
   z-index: -1;
   border-radius: 12px;
   filter: blur(3px);
-  /* 依靠 max-width 和 max-height 形成交错的阶梯边框 */
   max-height: 70px;
   max-width: 314px;
 }
@@ -529,10 +453,10 @@ watch(
 
 #main {
   position: relative;
-  display: flex; /* 确保内容自然排布 */
+  display: flex;
 }
 
-#main:focus-within > #input-mask {
+#main:focus-within>#input-mask {
   display: none;
 }
 
@@ -559,7 +483,7 @@ watch(
   transition: all 2s;
 }
 
-#main:hover > #pink-mask {
+#main:hover>#pink-mask {
   opacity: 0;
 }
 
@@ -583,14 +507,7 @@ watch(
   background-repeat: no-repeat;
   background-position: 0 0;
   filter: brightness(1.4);
-  background-image: conic-gradient(
-    rgba(0, 0, 0, 0) 0%,
-    #a099d8,
-    rgba(0, 0, 0, 0) 8%,
-    rgba(0, 0, 0, 0) 50%,
-    #dfa2da,
-    rgba(0, 0, 0, 0) 58%
-  );
+  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, #a099d8, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, #dfa2da, rgba(0, 0, 0, 0) 58%);
   transition: all 2s;
 }
 
@@ -614,14 +531,7 @@ watch(
   filter: brightness(1.3);
   background-repeat: no-repeat;
   background-position: 0 0;
-  background-image: conic-gradient(
-    #1c191c,
-    #402fb5 5%,
-    #1c191c 14%,
-    #1c191c 50%,
-    #cf30aa 60%,
-    #1c191c 64%
-  );
+  background-image: conic-gradient(#1c191c, #402fb5 5%, #1c191c 14%, #1c191c 50%, #cf30aa 60%, #1c191c 64%);
   transition: all 2s;
 }
 
@@ -642,43 +552,42 @@ watch(
   height: 600px;
   background-repeat: no-repeat;
   background-position: 0 0;
-  background-image: conic-gradient(
-    rgba(0, 0, 0, 0),
-    #18116a,
-    rgba(0, 0, 0, 0) 10%,
-    rgba(0, 0, 0, 0) 50%,
-    #6e1b60,
-    rgba(0, 0, 0, 0) 60%
-  );
+  background-image: conic-gradient(rgba(0, 0, 0, 0), #18116a, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, #6e1b60, rgba(0, 0, 0, 0) 60%);
   transition: all 2s;
 }
 
-#poda:hover > .darkBorderBg::before {
+#poda:hover>.darkBorderBg::before {
   transform: translate(-50%, -50%) rotate(262deg);
 }
-#poda:hover > .glow::before {
+
+#poda:hover>.glow::before {
   transform: translate(-50%, -50%) rotate(240deg);
 }
-#poda:hover > .white::before {
+
+#poda:hover>.white::before {
   transform: translate(-50%, -50%) rotate(263deg);
 }
-#poda:hover > .border::before {
+
+#poda:hover>.border::before {
   transform: translate(-50%, -50%) rotate(250deg);
 }
 
-#poda:focus-within > .darkBorderBg::before {
+#poda:focus-within>.darkBorderBg::before {
   transform: translate(-50%, -50%) rotate(442deg);
   transition: all 4s;
 }
-#poda:focus-within > .glow::before {
+
+#poda:focus-within>.glow::before {
   transform: translate(-50%, -50%) rotate(420deg);
   transition: all 4s;
 }
-#poda:focus-within > .white::before {
+
+#poda:focus-within>.white::before {
   transform: translate(-50%, -50%) rotate(443deg);
   transition: all 4s;
 }
-#poda:focus-within > .border::before {
+
+#poda:focus-within>.border::before {
   transform: translate(-50%, -50%) rotate(430deg);
   transition: all 4s;
 }
@@ -687,7 +596,6 @@ watch(
   overflow: hidden;
   filter: blur(30px);
   opacity: 0.4;
-  /* Glow 层有独占的宽高限制，重写覆盖统一配置 */
   max-height: 130px;
   max-width: 354px;
 }
@@ -704,14 +612,7 @@ watch(
   height: 999px;
   background-repeat: no-repeat;
   background-position: 0 0;
-  background-image: conic-gradient(
-    #000,
-    #402fb5 5%,
-    #000 38%,
-    #000 50%,
-    #cf30aa 60%,
-    #000 87%
-  );
+  background-image: conic-gradient(#000, #402fb5 5%, #000 38%, #000 50%, #cf30aa 60%, #000 87%);
   transition: all 2s;
 }
 
@@ -721,75 +622,8 @@ watch(
   }
 }
 
-@keyframes leftright {
-  0% {
-    transform: translate(0px, 0px);
-    opacity: 1;
-  }
-  49% {
-    transform: translate(250px, 0px);
-    opacity: 0;
-  }
-  80% {
-    transform: translate(-40px, 0px);
-    opacity: 0;
-  }
-  100% {
-    transform: translate(0px, 0px);
-    opacity: 1;
-  }
-}
-
 #filter-icon {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  max-height: 40px;
-  max-width: 38px;
-  height: 100%;
-  width: 100%;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #161329, black, #1d1b4b);
-  border: 1px solid transparent;
-}
-
-.filterBorder {
-  height: 42px;
-  width: 40px;
-  position: absolute;
-  overflow: hidden;
-  top: 7px;
-  right: 7px;
-  border-radius: 10px;
-}
-
-.filterBorder::before {
-  content: "";
-  text-align: center;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(90deg);
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  filter: brightness(1.35);
-  background-image: conic-gradient(
-    rgba(0, 0, 0, 0),
-    #3d3a4f,
-    rgba(0, 0, 0, 0) 50%,
-    rgba(0, 0, 0, 0) 50%,
-    #3d3a4f,
-    rgba(0, 0, 0, 0) 100%
-  );
-  animation: rotate 4s linear infinite;
+  display: none;
 }
 
 #search-icon {
@@ -798,26 +632,29 @@ watch(
   top: 15px;
 }
 
-/* 移动端适配：防挤压并进一步微缩搜索框 */
 @media (max-width: 768px) {
   .logo-container {
     position: static;
     transform: none;
   }
+
   .card-nav-cta-button {
     display: none;
   }
+
   .card-nav-content {
     flex-direction: column;
     align-items: stretch;
   }
+
   .nav-card {
     flex: 1 1 auto;
     height: auto;
     min-height: 60px;
   }
+
   #poda {
-    transform: scale(0.55); /* 手机端再缩小一点，防止遮挡汉堡菜单 */
+    transform: scale(0.55);
   }
 }
 </style>
