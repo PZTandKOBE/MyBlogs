@@ -2,8 +2,8 @@
 import { ref } from 'vue';
 import { loginApi, registerApi } from '@/api/auth';
 import AlertModal from '@/views/Error/index.vue';
-// 如果后续登录成功需要跳转，取消下面两行的注释
 import { useRouter } from 'vue-router';
+
 const router = useRouter();
 
 const isLoading = ref(false);
@@ -37,39 +37,48 @@ const loginForm = ref({
   password: ''
 });
 
-// 注册表单数据
+// 注册表单数据 (新增 email 和 confirmPassword)
 const registerForm = ref({
   username: '',
-  password: ''
+  email: '',
+  password: '',
+  confirmPassword: ''
 });
+
+// 邮箱正则校验
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // 登录逻辑
 const handleLogin = async () => {
-  if (!loginForm.value.username || !loginForm.value.password) {
-    showAlert({
-      type: 'error',
-      title: '输入不完整',
-      message: '请输入完整的账号和密码'
-    });
+  // 1. 格式校验
+  if (!loginForm.value.username || loginForm.value.username.length < 3) {
+    showAlert({ type: 'error', title: '格式错误', message: '用户名不能为空且不能少于3位' });
     return;
   }
-  
+  if (!loginForm.value.password || loginForm.value.password.length < 6) {
+    showAlert({ type: 'error', title: '格式错误', message: '密码不能少于6位' });
+    return;
+  }
+
   try {
     isLoading.value = true;
-    const res = await loginApi(loginForm.value);
+
+    // 直接发送原始密码，依赖 HTTPS 保证传输安全
+    const res = await loginApi({
+      username: loginForm.value.username,
+      password: loginForm.value.password
+    });
+
     console.log('登录响应:', res);
-    
-    // 假设后端在返回结构中包含了 token：res.data.token
-    // 如果后端的结构不同，请根据实际打印出来的 res 调整
+
     if (res && res.data) {
-      localStorage.setItem('token', res.data); // 根据你的实际返回字段修改，如果返回示例里data就是token串的话
+      localStorage.setItem('token', res.data);
       pendingRedirect.value = true;
       showAlert({
         type: 'success',
         title: '登录成功',
         message: '欢迎回来！'
       });
-      // router.push('/'); // 登录成功后跳转到首页
     } else {
       pendingRedirect.value = false;
       showAlert({
@@ -93,19 +102,34 @@ const handleLogin = async () => {
 
 // 注册逻辑
 const handleRegister = async () => {
-  if (!registerForm.value.username || !registerForm.value.password) {
-    pendingRedirect.value = false;
-    showAlert({
-      type: 'error',
-      title: '输入不完整',
-      message: '请输入完整的账号和密码'
-    });
+  // 1. 格式校验
+  if (!registerForm.value.username || registerForm.value.username.length < 3) {
+    showAlert({ type: 'error', title: '格式错误', message: '用户名不能为空且不能少于3位' });
+    return;
+  }
+  if (!registerForm.value.email || !emailRegex.test(registerForm.value.email)) {
+    showAlert({ type: 'error', title: '格式错误', message: '请输入有效的邮箱地址' });
+    return;
+  }
+  if (!registerForm.value.password || registerForm.value.password.length < 6) {
+    showAlert({ type: 'error', title: '格式错误', message: '密码不能少于6位' });
+    return;
+  }
+  if (registerForm.value.password !== registerForm.value.confirmPassword) {
+    showAlert({ type: 'error', title: '格式错误', message: '两次输入的密码不一致' });
     return;
   }
 
   try {
     isLoading.value = true;
-    const res = await registerApi(registerForm.value);
+
+    // 直接发送原始密码，依赖 HTTPS 保证传输安全
+    const res = await registerApi({
+      username: registerForm.value.username,
+      email: registerForm.value.email, // 新增邮箱字段
+      password: registerForm.value.password
+    });
+
     console.log('注册响应:', res);
     pendingRedirect.value = false;
     showAlert({
@@ -113,9 +137,11 @@ const handleRegister = async () => {
       title: '注册成功',
       message: '请翻转卡片进行登录！'
     });
-    // 注册成功后可手动清理表单
+    // 注册成功后清理表单
     registerForm.value.username = '';
+    registerForm.value.email = '';
     registerForm.value.password = '';
+    registerForm.value.confirmPassword = '';
   } catch (error) {
     console.error('注册失败:', error);
     pendingRedirect.value = false;
@@ -138,21 +164,26 @@ const handleRegister = async () => {
         <span class="slider"></span>
         <span class="card-side"></span>
         <div class="flip-card__inner">
-          
+
           <div class="flip-card__front">
             <div class="title">Log in</div>
             <form class="flip-card__form" @submit.prevent="handleLogin">
-              <input type="text" placeholder="Username" v-model="loginForm.username" class="flip-card__input">
-              <input type="password" placeholder="Password" v-model="loginForm.password" class="flip-card__input">
+              <input type="text" placeholder="Username (至少3位)" v-model="loginForm.username" class="flip-card__input">
+              <input type="password" placeholder="Password (至少6位)" v-model="loginForm.password"
+                class="flip-card__input">
               <button type="submit" class="flip-card__btn" :disabled="isLoading">Let`s go!</button>
             </form>
           </div>
-          
+
           <div class="flip-card__back">
             <div class="title">Sign up</div>
             <form class="flip-card__form" @submit.prevent="handleRegister">
-              <input type="text" placeholder="Username" v-model="registerForm.username" class="flip-card__input">
-              <input type="password" placeholder="Password" v-model="registerForm.password" class="flip-card__input">
+              <input type="text" placeholder="Username (至少3位)" v-model="registerForm.username" class="flip-card__input">
+              <input type="email" placeholder="Email" v-model="registerForm.email" class="flip-card__input">
+              <input type="password" placeholder="Password (至少6位)" v-model="registerForm.password"
+                class="flip-card__input">
+              <input type="password" placeholder="Confirm Password" v-model="registerForm.confirmPassword"
+                class="flip-card__input">
               <button type="submit" class="flip-card__btn" :disabled="isLoading">Confirm!</button>
             </form>
           </div>
@@ -160,14 +191,8 @@ const handleRegister = async () => {
         </div>
       </label>
     </div>
-    <AlertModal
-      v-model:visible="alertVisible"
-      :type="alertType"
-      :title="alertTitle"
-      :message="alertMessage"
-      @confirm="handleAlertConfirm"
-      @cancel="handleAlertCancel"
-    />
+    <AlertModal v-model:visible="alertVisible" :type="alertType" :title="alertTitle" :message="alertMessage"
+      @confirm="handleAlertConfirm" @cancel="handleAlertCancel" />
   </div>
 </template>
 
@@ -180,7 +205,7 @@ const handleRegister = async () => {
   --bg-color-alt: #7e7e7e;
   --main-color: #fefefe;
 }
-/* switch card */
+
 .switch {
   transform: translateY(-200px);
   position: relative;
@@ -251,27 +276,26 @@ const handleRegister = async () => {
   transition: 0.3s;
 }
 
-.toggle:checked + .slider {
+.toggle:checked+.slider {
   background-color: var(--input-focus);
 }
 
-.toggle:checked + .slider:before {
+.toggle:checked+.slider:before {
   transform: translateX(30px);
 }
 
-.toggle:checked ~ .card-side:before {
+.toggle:checked~.card-side:before {
   text-decoration: none;
 }
 
-.toggle:checked ~ .card-side:after {
+.toggle:checked~.card-side:after {
   text-decoration: underline;
 }
 
-/* card */ 
-
 .flip-card__inner {
   width: 300px;
-  height: 350px;
+  height: 460px;
+  /* 增加高度以容纳新增的两个输入框 */
   position: relative;
   background-color: transparent;
   perspective: 1000px;
@@ -280,15 +304,16 @@ const handleRegister = async () => {
   transform-style: preserve-3d;
 }
 
-.toggle:checked ~ .flip-card__inner {
+.toggle:checked~.flip-card__inner {
   transform: rotateY(180deg);
 }
 
-.toggle:checked ~ .flip-card__front {
+.toggle:checked~.flip-card__front {
   box-shadow: none;
 }
 
-.flip-card__front, .flip-card__back {
+.flip-card__front,
+.flip-card__back {
   padding: 20px;
   position: absolute;
   display: flex;
@@ -316,7 +341,7 @@ const handleRegister = async () => {
 }
 
 .title {
-  margin: 20px 0 20px 0;
+  margin: 10px 0 20px 0;
   font-size: 25px;
   font-weight: 900;
   text-align: center;
@@ -346,13 +371,14 @@ const handleRegister = async () => {
   border: 2px solid var(--input-focus);
 }
 
-.flip-card__btn:active, .button-confirm:active {
+.flip-card__btn:active,
+.button-confirm:active {
   box-shadow: 0px 0px var(--main-color);
   transform: translate(3px, 3px);
 }
 
 .flip-card__btn {
-  margin: 20px 0 20px 0;
+  margin: 10px 0 10px 0;
   width: 120px;
   height: 40px;
   border-radius: 5px;
@@ -364,6 +390,7 @@ const handleRegister = async () => {
   color: var(--font-color);
   cursor: pointer;
 }
+
 .flip-card__btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

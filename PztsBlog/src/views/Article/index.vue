@@ -1,42 +1,21 @@
 <template>
   <div class="article-page">
-    
+
     <div class="fixed-menu-container" :class="{ 'is-open': isMenuOpen }">
-      <StaggeredMenu
-        position="right"
-        :items="menuItems"
-        :social-items="socialItems"
-        :display-socials="true"
-        :display-item-numbering="true"
-        menu-button-color="#ffffff"
-        open-menu-button-color="#000000"
-        :change-menu-color-on-open="true"
-        :colors="['#9EF2B2', '#27FF64']"   
-        :logo-url="logo"
-        accent-color="#27FF64"             
-        @menu-open="handleMenuOpen"
-        @menu-close="handleMenuClose"
-      />
+      <StaggeredMenu position="right" :items="menuItems" :social-items="socialItems" :display-socials="true"
+        :display-item-numbering="true" menu-button-color="#ffffff" open-menu-button-color="#000000"
+        :change-menu-color-on-open="true" :colors="['#9EF2B2', '#27FF64']" :logo-url="logo" accent-color="#27FF64"
+        @menu-open="handleMenuOpen" @menu-close="handleMenuClose" />
     </div>
 
     <div class="progress-bar" :style="{ width: progress + '%' }"></div>
 
-    <LightRays
-      rays-origin="top-center"
-      rays-color="#ffffff"
-      :rays-speed="1.5"
-      :light-spread="0.8"
-      :ray-length="1.2"
-      :follow-mouse="true"
-      :mouse-influence="0.1"
-      :noise-amount="0.1"
-      :distortion="0.05"
-      class-name="custom-rays"
-    />
+    <LightRays rays-origin="top-center" rays-color="#ffffff" :rays-speed="1.5" :light-spread="0.8" :ray-length="1.2"
+      :follow-mouse="true" :mouse-influence="0.1" :noise-amount="0.1" :distortion="0.05" class-name="custom-rays" />
 
     <div class="scroll-wrapper" ref="scrollWrapper" @scroll="handleScroll">
       <div class="article-layout">
-        
+
         <div class="main-content-wrapper">
           <div class="article-container glass-container">
             <h1 class="title">{{ articleData.title }}</h1>
@@ -55,7 +34,7 @@
         </div>
 
         <div class="right-sidebar">
-          
+
           <div class="author-card glass-container">
             <div class="author-header">
               <img :src="articleData.authorAvatar" alt="author avatar" class="author-avatar" />
@@ -83,12 +62,9 @@
           <aside class="toc-sidebar glass-container">
             <h3 class="toc-title">目录</h3>
             <ul class="toc-list">
-              <li
-                v-for="item in toc"
-                :key="item.id"
+              <li v-for="item in toc" :key="item.id"
                 :class="['toc-item', `level-${item.level}`, { active: activeId === item.id }]"
-                @click="scrollTo(item.id)"
-              >
+                @click="scrollTo(item.id)">
                 <div class="toc-indicator"></div>
                 {{ item.text }}
               </li>
@@ -99,14 +75,10 @@
 
       </div>
 
-      <button
-        class="back-to-top"
-        :class="{ show: showBackToTop }"
-        @click="scrollToTop"
-        aria-label="返回顶部"
-      >
+      <button class="back-to-top" :class="{ show: showBackToTop }" @click="scrollToTop" aria-label="返回顶部">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 20V4M12 4L5 11M12 4L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 20V4M12 4L5 11M12 4L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
         </svg>
       </button>
 
@@ -117,7 +89,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import MarkdownIt from "markdown-it"; 
+import MarkdownIt from "markdown-it";
 import LightRays from "../background/LightRays.vue";
 import StaggeredMenu from "@/components/common/StaggeredMenu.vue";
 import logo from "@/assets/Blog.svg";
@@ -177,14 +149,14 @@ const articleData = ref({
 const formatTime = (timeStr: string) => {
   if (!timeStr) return '刚刚发布';
   const date = new Date(timeStr);
-  if (isNaN(date.getTime())) return timeStr; 
-  
+  if (isNaN(date.getTime())) return timeStr;
+
   const Y = date.getFullYear();
   const M = String(date.getMonth() + 1).padStart(2, '0');
   const D = String(date.getDate()).padStart(2, '0');
   const h = String(date.getHours()).padStart(2, '0');
   const m = String(date.getMinutes()).padStart(2, '0');
-  
+
   return `${Y}-${M}-${D} ${h}:${m}`;
 };
 
@@ -196,23 +168,22 @@ const fetchArticleDetail = async () => {
     const res = await getArticleDetailApi(articleId as string);
     if (res && res.data) {
       const rawContent = res.data.content || '暂无内容';
-      
+
       articleData.value = {
         title: res.data.title || '无标题',
         author: res.data.authorName || res.data.author || '彭梓涛',
         authorAvatar: res.data.authorAvatar || 'https://ts4.tc.mm.bing.net/th/id/OIP-C.eCAnJt0l-KUqG3LhjTvFmQHaHa?rs=1&pid=ImgDetMain&o=7&rm=3',
         authorTitle: '博客主理人',
-        authorArticles: 42, 
+        authorArticles: 42,
         authorTags: 128,
         authorLikes: '12.5k',
         date: formatTime(res.data.createTime || res.data.date),
-        content: md.render(rawContent) 
+        content: md.render(rawContent)
       };
 
       const authorId = res.data.authorId || res.data.userId;
       const token = localStorage.getItem('token');
 
-      // 【修改点 2】：智能判断 token，只有在登录状态下才去查用户信息，彻底避免游客访问时被拦截报错！
       if (authorId && token) {
         try {
           const userRes = await getUserByIdApi(authorId);
@@ -245,10 +216,10 @@ const initArticleEnhancements = async () => {
 
   const headers = articleBody.value.querySelectorAll("h2, h3");
   const tocArr: TocItem[] = [];
-  
+
   headers.forEach((el, index) => {
     const id = `heading-${index}`;
-    el.id = id; 
+    el.id = id;
     tocArr.push({
       id,
       text: (el as HTMLElement).innerText,
@@ -262,7 +233,7 @@ const initArticleEnhancements = async () => {
     const btn = document.createElement("button");
     btn.className = "copy-code-btn";
     btn.innerText = "Copy";
-    
+
     btn.onclick = async () => {
       try {
         const code = pre.querySelector("code")?.innerText || pre.innerText;
@@ -284,12 +255,12 @@ const initArticleEnhancements = async () => {
 const handleScroll = () => {
   if (!scrollWrapper.value) return;
   const { scrollTop, scrollHeight, clientHeight } = scrollWrapper.value;
-  
+
   progress.value = (scrollTop / (scrollHeight - clientHeight)) * 100 || 0;
   showBackToTop.value = scrollTop > 300;
 
   if (toc.value.length === 0) return;
-  
+
   let currentId = toc.value[0].id;
   for (const item of toc.value) {
     const el = document.getElementById(item.id);
@@ -309,7 +280,7 @@ const scrollTo = (id: string) => {
     const wrapperRect = scrollWrapper.value.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const top = scrollWrapper.value.scrollTop + (elRect.top - wrapperRect.top) - 80;
-    
+
     scrollWrapper.value.scrollTo({ top, behavior: "smooth" });
   }
 };
@@ -387,7 +358,6 @@ onMounted(() => {
   display: none;
 }
 
-/* 【修改点 3】：拓宽网格容器，中间栏从 850px 放宽至 950px */
 .article-layout {
   display: grid;
   grid-template-columns: 1fr minmax(auto, 950px) 1fr;
@@ -437,8 +407,15 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .author-card {
@@ -668,6 +645,14 @@ onMounted(() => {
   overflow-x: auto;
   margin: 2rem 0;
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+
+  /* --- 修复代码块自动换行 --- */
+  white-space: pre-wrap;
+  /* 保留空格并允许自动换行 */
+  word-break: break-all;
+  /* 允许在单词内断行，防止长字符串撑开容器 */
+  overflow-wrap: break-word;
+  /* 更好的兼容性 */
 }
 
 .markdown-body :deep(pre)::before {
@@ -686,6 +671,9 @@ onMounted(() => {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.95rem;
   color: #e2e8f0;
+
+  /* --- 确保 code 标签也支持换行 --- */
+  white-space: pre-wrap;
 }
 
 .markdown-body :deep(.copy-code-btn) {

@@ -66,7 +66,6 @@ const props = defineProps({
     type: [Number, String, null],
     default: null
   },
-  // 接收从首页导航栏传来的查询关键词
   keyword: {
     type: String,
     default: ''
@@ -128,7 +127,6 @@ const fetchArticles = async () => {
       params.categoryId = Number(props.categoryId);
     }
 
-    // 将 keyword 加入到 API 请求中
     if (props.keyword) {
       params.keyword = props.keyword;
     }
@@ -152,7 +150,8 @@ const fetchArticles = async () => {
           title: item.title || '无标题',
           summary: generateSummary || '暂无摘要',
           date: formatTime(item.createTime || item.date),
-          author: item.authorName || item.author || '彭梓涛',
+          // 修正作者取值逻辑：扩大范围，如果没有返回则兜底未知作者
+          author: item.authorName || item.author || item.username || '未知作者',
           categoryName: categoryMap[item.categoryId] || ''
         };
       });
@@ -176,7 +175,6 @@ const nextPage = () => {
   }
 };
 
-// 监听分类ID或关键词的变化：只要改了就重置到第一页，并重新请求
 watch(() => [props.categoryId, props.keyword], () => {
   currentPage.value = 1;
   fetchArticles().then(scrollToTop);
@@ -202,11 +200,9 @@ const goToArticle = (id: number) => {
   box-sizing: border-box;
   scroll-behavior: smooth;
 }
-
 .list-card-wrapper::-webkit-scrollbar {
   display: none;
 }
-
 .glass-container {
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(12px);
@@ -214,20 +210,17 @@ const goToArticle = (id: number) => {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 20px;
 }
-
 .article-content-container {
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
-
 .article-list {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
   flex: 1;
 }
-
 .article-item {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -236,14 +229,12 @@ const goToArticle = (id: number) => {
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .article-item:hover {
   transform: translateY(-4px);
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.25);
   box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
 }
-
 .article-title {
   display: flex;
   align-items: center;
@@ -254,7 +245,6 @@ const goToArticle = (id: number) => {
   margin: 0 0 0.6rem 0;
   letter-spacing: 0.5px;
 }
-
 .category-badge {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
@@ -266,7 +256,6 @@ const goToArticle = (id: number) => {
   color: rgba(255, 255, 255, 0.9);
   flex-shrink: 0;
 }
-
 .article-summary {
   font-family: sans-serif;
   font-size: 0.95rem;
@@ -278,7 +267,6 @@ const goToArticle = (id: number) => {
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-
 .article-meta {
   display: flex;
   justify-content: space-between;
@@ -287,12 +275,10 @@ const goToArticle = (id: number) => {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.4);
 }
-
 .author {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
 }
-
 .pagination-container {
   display: flex;
   justify-content: center;
@@ -304,7 +290,6 @@ const goToArticle = (id: number) => {
   padding-bottom: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
-
 .page-btn {
   display: flex;
   align-items: center;
@@ -318,30 +303,25 @@ const goToArticle = (id: number) => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .page-btn svg {
   width: 16px;
   height: 16px;
 }
-
 .page-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
 }
-
 .page-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
-
 .page-info {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.6);
   font-family: "Fira Code", monospace;
   letter-spacing: 1px;
 }
-
 .empty-state {
   flex: 1;
   display: flex;
@@ -351,19 +331,16 @@ const goToArticle = (id: number) => {
   gap: 1.5rem;
   color: rgba(255, 255, 255, 0.4);
 }
-
 .empty-icon {
   width: 48px;
   height: 48px;
   opacity: 0.5;
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
-
 .empty-state:hover .empty-icon {
   opacity: 0.9;
   transform: scale(1.05);
 }
-
 .empty-text {
   font-family: sans-serif;
   font-size: 1.1rem;
@@ -372,14 +349,12 @@ const goToArticle = (id: number) => {
   font-weight: 300;
   text-indent: 0.25em;
 }
-
 .empty-line {
   width: 40px;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   transition: width 0.4s ease, background 0.4s ease;
 }
-
 .empty-state:hover .empty-line {
   width: 100px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);

@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div class="scroll-content">
+    <div class="scroll-content" ref="scrollContainer">
       <div class="main-layout">
         
         <div class="left-sidebar">
@@ -41,10 +41,15 @@
             <h2 class="section-title">发布过的文章 <span>/ PUBLISHED ARTICLES</span></h2>
             <div class="articles-list">
               
+              <div v-if="paginatedArticles.length === 0" class="empty-state">
+                <p style="color: rgba(255,255,255,0.4);">暂时还没有发布文章哦...</p>
+              </div>
+
               <div 
+                v-else
                 class="article-card" 
-                v-for="(article, index) in articles" 
-                :key="index"
+                v-for="article in paginatedArticles" 
+                :key="article.id"
                 @click="goToArticle(article.id)"
               >
                 <div class="article-meta">
@@ -58,6 +63,22 @@
                 <button class="read-more-btn">Read More <span class="arrow">→</span></button>
               </div>
 
+              <div class="pagination-container" v-if="totalPages > 1">
+                <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                  上一页
+                </button>
+                <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+                <button class="page-btn" :disabled="currentPage === totalPages" @click="nextPage">
+                  下一页
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+              </div>
+
             </div>
           </section>
 
@@ -68,52 +89,121 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import LightRays from '@/views/background/LightRays.vue';
 import userInfoCard from '@/components/common/userInfoCard.vue';
+import { getArticleListApi } from '@/api/article';
 
 const router = useRouter();
+
+// 滚动容器的引用
+const scrollContainer = ref<HTMLElement | null>(null);
 
 const goBack = () => {
   router.back();
 };
 
-// 跳转到文章详情页
-const goToArticle = (id: string) => {
+const goToArticle = (id: string | number) => {
   router.push(`/article/${id}`);
 };
 
-// 模拟“发布过的文章”数据，加入 id 字段用于路由跳转
-const articles = [
-  {
-    id: '1',
-    title: 'Vue3 与 Three.js 融合：打造沉浸式 3D 博客主页',
-    date: '2026-03-12',
-    tags: ['Vue3', 'Three.js', '前端动画'],
-    excerpt: '探讨如何在 Vite + Vue3 项目中优雅地引入 WebGL 动画，利用 GSAP 与 OGL 实现丝滑的页面过渡与光影效果，让个人博客不再单调。'
-  },
-  {
-    id: '2',
-    title: '智能伴游系统的前端架构设计与组件化实践',
-    date: '2026-01-26',
-    tags: ['架构设计', '项目复盘', 'Vue3'],
-    excerpt: '复盘近期主导的智能伴游系统项目，分享在处理语音输入、图像识别交互以及知识问答游戏模块时，如何进行合理的状态管理与组件拆分。'
-  },
-  {
-    id: '3',
-    title: '致敬传奇：从里奥·梅西的职业生涯看纯粹的坚持',
-    date: '2025-12-18',
-    tags: ['随笔', '生活', '足球'],
-    excerpt: '在这个快节奏的时代，重温梅西在绿茵场上的那些经典瞬间。技术、视野与日复一日的自律，其实和我们敲击键盘写代码的追求有着异曲同工之妙。'
-  },
-  {
-    id: '4',
-    title: 'CS 竞技心得：精准定位与急停的肌肉记忆训练',
-    date: '2025-11-05',
-    tags: ['游戏', 'CS', '随笔'],
-    excerpt: '分享最近观看 Danking 比赛录像后的一些心得。关于预瞄点、急停手感以及在逆风局中如何保持心态平和的几点思考。'
+// 存放过滤后的真实个人文章全集
+const articles = ref<any[]>([]);
+
+// === 分页核心状态 ===
+const currentPage = ref(1);
+const pageSize = ref(4); // 这里设置每页显示4篇文章
+const totalPages = computed(() => Math.ceil(articles.value.length / pageSize.value) || 0);
+
+// 计算当前页需要展示的文章切片
+const paginatedArticles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = currentPage.value * pageSize.value;
+  return articles.value.slice(start, end);
+});
+
+// 平滑滚动回顶部
+const scrollToTop = () => {
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTo({ top: 0, behavior: 'smooth' });
   }
-];
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    scrollToTop();
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+    scrollToTop();
+  }
+};
+// === 分页逻辑结束 ===
+
+// 格式化时间的辅助函数 (YYYY-MM-DD)
+const formatDate = (dateString: string) => {
+  if (!dateString) return '刚刚';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// 去除 HTML 标签，提取纯文本作为摘要
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  return html.replace(/<[^>]+>/g, '');
+};
+
+const fetchMyArticles = async () => {
+  try {
+    // 拉取足量数据进行前端过滤
+    const res = await getArticleListApi({ pageNum: 1, pageSize: 200 });
+    
+    if (res && res.data) {
+      const list = Array.isArray(res.data) ? res.data : (res.data.list || []);
+      
+      // 核心过滤逻辑：匹配数据库真实字段
+      const myRealArticles = list.filter((item: any) => 
+        item.userId === 1 || item.user_id === 1 || item.authorId === 1
+      );
+
+      // 字段映射与数据清洗
+      articles.value = myRealArticles.map((item: any) => {
+        let excerptText = item.summary;
+        if (!excerptText && item.content) {
+          const pureText = stripHtml(item.content);
+          excerptText = pureText.length > 80 ? pureText.substring(0, 80) + '...' : pureText;
+        }
+
+        const tagsArray = [];
+        if (item.categoryName) tagsArray.push(item.categoryName);
+        else tagsArray.push('日常笔记');
+
+        return {
+          id: item.id,
+          title: item.title || '无标题文章',
+          date: formatDate(item.createTime || item.create_time || item.date),
+          tags: tagsArray,
+          excerpt: excerptText || '这个人很懒，什么都没写...'
+        };
+      });
+    }
+  } catch (error) {
+    console.error('获取个人文章列表失败:', error);
+  }
+};
+
+onMounted(() => {
+  fetchMyArticles();
+});
 </script>
 
 <style scoped>
@@ -137,7 +227,7 @@ const articles = [
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.6; /* 调低亮度，契合黑暗简约风 */
+  opacity: 0.6;
 }
 
 /* 简单的顶部返回导航 */
@@ -178,7 +268,7 @@ const articles = [
   height: 20px;
 }
 
-/* 内部可滚动区域 —— 添加了 box-sizing 彻底修复截断问题 */
+/* 内部可滚动区域 */
 .scroll-content {
   position: absolute;
   top: 0;
@@ -190,6 +280,7 @@ const articles = [
   padding-top: 100px;
   padding-bottom: 100px;
   box-sizing: border-box; 
+  scroll-behavior: smooth; /* 配合JS翻页控制更丝滑 */
 }
 
 .scroll-content::-webkit-scrollbar {
@@ -215,7 +306,7 @@ const articles = [
 
 /* 左侧固定侧边栏 */
 .left-sidebar {
-  width: 19rem; /* 与 userInfoCard 宽度保持一致 */
+  width: 19rem;
   flex-shrink: 0;
 }
 
@@ -282,6 +373,14 @@ const articles = [
   gap: 1.5rem;
 }
 
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(15, 15, 15, 0.5);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
 .article-card {
   background: rgba(15, 15, 15, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.03);
@@ -290,7 +389,7 @@ const articles = [
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  cursor: pointer; /* 提示这是一个可点击的卡片 */
+  cursor: pointer;
 }
 
 .article-card::before {
@@ -374,7 +473,7 @@ const articles = [
   align-items: center;
   gap: 0.5rem;
   padding: 0;
-  pointer-events: none; /* 让外层卡片接管点击事件，防止内层按钮拦截 */
+  pointer-events: none;
 }
 
 .read-more-btn .arrow {
@@ -383,6 +482,54 @@ const articles = [
 
 .article-card:hover .read-more-btn .arrow {
   transform: translateX(5px);
+}
+
+/* 分页器样式 */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.page-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: "Fira Code", monospace;
+  letter-spacing: 1px;
 }
 
 /* 简单的入场动画 */
