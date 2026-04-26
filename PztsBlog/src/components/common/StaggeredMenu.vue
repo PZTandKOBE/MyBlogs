@@ -79,6 +79,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, wa
 import { useRouter } from 'vue-router';
 import request from '@/utils/request';
 import MarkdownIt from 'markdown-it';
+// 引入原生 axios 进行跨服务请求
+import axios from 'axios';
 
 // --- 基础配置 ---
 const md = new MarkdownIt();
@@ -189,42 +191,40 @@ const handleSendMessage = async () => {
 
   const query = userInput.value;
 
-  // 【核心修改点 1：打包历史记录】
-  // 在把当前用户的新问题展示到界面之前，我们先把之前的对话打包。
-  // 只提取发给后端所需的 role 和 content，抛弃 sources 等多余字段。
+  // 格式化历史记录：提取后端所需的 role 和 content
   const formattedHistory = chatHistory.value.map(msg => ({
-    // 【核心修改点 2：角色映射】
-    // 你的前端界面用的是 'ai'，但后端的 LangChain 严格认准 'assistant'，所以在这里做一层无缝转换
     role: msg.role === 'ai' ? 'assistant' : 'user',
     content: msg.content
   }));
 
-  // 把当前用户的提问 push 到界面上显示
+  // 将用户的提问 push 到界面
   chatHistory.value.push({ role: 'user', content: query, sources: [] });
   userInput.value = '';
   isLoading.value = true;
-  scrollToBottom(true); // 用户发消息时强制滚到底部
+  scrollToBottom(true);
 
   try {
-    // 【核心修改点 3：携带书包发送】
-    // 将最新的问题 query，和打包好的格式化历史记录 history 一起发给 Axios
-    const response = await request.post('/api/v1/chat', {
+    // 【核心修改点】：使用原生 axios 直接调用 Python 9090 端口，绕过 Java 拦截
+    const response = await axios.post('http://121.37.230.81:9090/api/v1/chat', {
       query: query,
       history: formattedHistory
     });
 
-    if (response.status === 'success') {
-      const aiMsgIndex = chatHistory.value.push({ role: 'ai', content: '', sources: response.data.sources }) - 1;
-      typeEffect(response.data.answer, aiMsgIndex);
+    const resBody = response.data;
+
+    if (resBody.status === 'success') {
+      const aiMsgIndex = chatHistory.value.push({ role: 'ai', content: '', sources: resBody.data.sources }) - 1;
+      typeEffect(resBody.data.answer, aiMsgIndex);
     }
   } catch (error) {
-    chatHistory.value.push({ role: 'ai', content: '抱歉，后端大脑由于 500 错误拒绝了连接，请稍后再试。', sources: [] });
+    console.error("AI 接口请求失败:", error);
+    chatHistory.value.push({ role: 'ai', content: '抱歉，无法连接到 AI 大脑，请检查网络或后端服务。', sources: [] });
   } finally {
     isLoading.value = false;
   }
 };
 
-// --- GSAP 动画基建 (保留原版多图层逻辑) ---
+// --- GSAP 动画基建 ---
 
 let gsapContext: gsap.Context | null = null;
 
@@ -370,14 +370,12 @@ onBeforeUnmount(() => {
 }
 
 .sm-scope {
-  /* 悬浮在全应用最顶层，彻底脱离文档流 */
   position: absolute;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   z-index: 50;
-  /* 只有面板和按钮响应鼠标 */
   pointer-events: none;
 }
 
@@ -395,7 +393,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  /* 按钮靠右 */
   padding: 2.5em;
   background: transparent;
   pointer-events: none;
