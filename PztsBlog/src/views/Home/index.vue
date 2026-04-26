@@ -37,15 +37,7 @@
           ease="power3.out"
         />
 
-        <div class="login-btn-container">
-          <button v-if="!isLoggedIn" class="login-btn" @click="goToLogin">
-            登 录
-          </button>
-          <button v-else class="login-btn logout-btn" @click="handleLogout">
-            退出账号
-          </button>
         </div>
-      </div>
 
       <div class="main-layout">
         <div class="left-nav-container">
@@ -297,54 +289,6 @@ const goToAuthorInfo = () => router.push('/user');
 .Btn:hover .svgContainer {
   background-color: rgba(156, 156, 156, 0.466);
   backdrop-filter: blur(4px);
-}
-
-.login-btn-container {
-  position: absolute;
-  right: 2.5%;
-  top: 40px;
-  pointer-events: auto;
-  z-index: 110;
-}
-
-.login-btn {
-  padding: 0.55rem 1.6rem;
-  font-size: 1rem;
-  font-family: sans-serif;
-  font-weight: 600;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.login-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-}
-
-.login-btn:active {
-  transform: translateY(0);
-}
-
-.logout-btn {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #f87171;
-}
-
-.logout-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
-  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .main-layout {

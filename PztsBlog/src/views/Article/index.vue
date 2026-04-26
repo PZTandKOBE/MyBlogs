@@ -1,6 +1,14 @@
 <template>
   <div class="article-page">
 
+    <button class="back-button" @click="goBack" aria-label="返回上一页">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+      <span class="back-text">Back</span>
+    </button>
+
     <div class="fixed-menu-container" :class="{ 'is-open': isMenuOpen }">
       <StaggeredMenu position="right" :items="menuItems" :social-items="socialItems" :display-socials="true"
         :display-item-numbering="true" menu-button-color="#ffffff" open-menu-button-color="#000000"
@@ -88,7 +96,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
-import { useRoute } from "vue-router";
+// 引入 useRouter 用于页面返回
+import { useRoute, useRouter } from "vue-router";
 import MarkdownIt from "markdown-it";
 import LightRays from "../background/LightRays.vue";
 import StaggeredMenu from "@/components/common/StaggeredMenu.vue";
@@ -99,12 +108,18 @@ import { getArticleDetailApi } from "@/api/article";
 import { getUserByIdApi } from "@/api/user";
 
 const route = useRoute();
+const router = useRouter(); // 实例化 router
 
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   breaks: true
 });
+
+// 返回上一页的方法
+const goBack = () => {
+  router.back();
+};
 
 const isMenuOpen = ref(false);
 const menuItems = [
@@ -295,6 +310,44 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ================= 左上角返回按钮 ================= */
+.back-button {
+  position: fixed;
+  top: 2.5rem;
+  left: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.6rem 1.2rem;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10000;
+  font-family: sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(-5px);
+  /* 悬浮时向左平移，暗示返回 */
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.back-button svg {
+  width: 20px;
+  height: 20px;
+}
+
 .article-page {
   width: 100%;
   height: 100vh;
@@ -648,11 +701,8 @@ onMounted(() => {
 
   /* --- 修复代码块自动换行 --- */
   white-space: pre-wrap;
-  /* 保留空格并允许自动换行 */
   word-break: break-all;
-  /* 允许在单词内断行，防止长字符串撑开容器 */
   overflow-wrap: break-word;
-  /* 更好的兼容性 */
 }
 
 .markdown-body :deep(pre)::before {
@@ -671,8 +721,6 @@ onMounted(() => {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.95rem;
   color: #e2e8f0;
-
-  /* --- 确保 code 标签也支持换行 --- */
   white-space: pre-wrap;
 }
 
@@ -761,6 +809,19 @@ onMounted(() => {
 
   .article-container {
     padding: 2rem 1.5rem;
+  }
+}
+
+/* 小屏幕适配：隐藏返回键文字，缩小间距 */
+@media (max-width: 768px) {
+  .back-button {
+    top: 1.5rem;
+    left: 1.5rem;
+    padding: 0.5rem;
+  }
+
+  .back-text {
+    display: none;
   }
 }
 </style>

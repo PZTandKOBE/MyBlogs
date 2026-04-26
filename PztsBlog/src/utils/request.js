@@ -3,8 +3,8 @@ import axios from 'axios';
 // 创建 axios 实例
 const request = axios.create({
   // baseURL 留空即可，因为配置了 vite 代理，我们会直接请求 /api/...
-  baseURL: '', 
-  timeout: 10000 // 请求超时时间
+  baseURL: '',
+  timeout: 100000 // 请求超时时间
 });
 
 // 请求拦截器
@@ -14,7 +14,7 @@ request.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       // 将 token 添加到请求头，通常配合 Bearer 使用，具体可按后端要求调整
-      config.headers['Authorization'] = `Bearer ${token}`; 
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
